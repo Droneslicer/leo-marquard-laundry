@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reception — Laundry Bookings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink:       #0f1623;
+      --ink-mid:   #3a4560;
+      --ink-soft:  #7a8aaa;
+      --bg:        #f4f6fa;
+      --bg-card:   #ffffff;
+      --border:    #e2e7f0;
+      --border-dark: #c8d0e0;
+
+      --green:     #0b7a52;
+      --green-bg:  #e6f7f1;
+      --green-bdr: #a8dfc9;
+
+      --amber:     #92580a;
+      --amber-bg:  #fef8ec;
+      --amber-bdr: #f0d090;
+
+      --red:       #9b2335;
+      --red-bg:    #fdeef0;
+      --red-bdr:   #f0b8c0;
+
+      --blue:      #1a4f8a;
+      --blue-bg:   #eaf2fc;
+      --blue-bdr:  #aacbef;
+
+      --radius:    12px;
+      --radius-sm: 8px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'IBM Plex Mono', monospace;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: var(--bg-card);
+      border-bottom: 2px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    .topbar-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.3px;
+    }
+    .topbar-sub {
+      font-size: 0.68rem;
+      color: var(--ink-soft);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    #liveClock {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 1px;
+    }
+    #liveDate {
+      font-size: 0.72rem;
+      color: var(--ink-soft);
+      letter-spacing: 0.5px;
+    }
+    .refresh-btn {
+      background: var(--ink);
+      color: #0a0600;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.45rem 1rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .refresh-btn:hover { background: var(--ink-mid); }
+    .refresh-btn.spinning svg { animation: spin 0.7s linear; }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* ── MAIN LAYOUT ── */
+    .main {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ── FILTERS BAR ── */
+    .filters {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-label {
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-right: 0.2rem;
+    }
+    .filter-btn {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: 100px;
+      padding: 0.35rem 1rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--ink-mid);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .filter-btn:hover { border-color: var(--ink-mid); color: var(--ink); }
+    .filter-btn.active {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #0a0600;
+    }
+    .search-wrap {
+      margin-left: auto;
+    }
+    .search-wrap input {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: 100px;
+      padding: 0.38rem 1rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--ink);
+      outline: none;
+      width: 220px;
+      transition: border-color 0.15s;
+    }
+    .search-wrap input:focus { border-color: var(--ink-mid); }
+    .search-wrap input::placeholder { color: var(--ink-soft); }
+
+    /* ── DATE PICKER ── */
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 1.8rem;
+    }
+    .date-nav-label {
+      font-family: 'Fraunces', serif;
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.3px;
+      min-width: 200px;
+    }
+    .date-nav-label span {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--ink-soft);
+      font-weight: 400;
+      display: block;
+      letter-spacing: 1px;
+    }
+    .nav-arrow {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-sm);
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--ink-mid);
+      transition: all 0.15s;
+    }
+    .nav-arrow:hover { background: var(--ink); color: white; border-color: var(--ink); }
+    .today-btn {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.9rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--ink-mid);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+    .today-btn:hover { background: var(--ink); color: white; border-color: var(--ink); }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius);
+      padding: 1rem 1.4rem;
+      flex: 1;
+      min-width: 120px;
+    }
+    .stat-num {
+      font-family: 'Fraunces', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-top: 4px;
+    }
+
+    /* ── BOOKING CARDS ── */
+    .section-header {
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bookings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+
+    .booking-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 1.2rem;
+      transition: box-shadow 0.15s, border-color 0.15s;
+      animation: cardIn 0.25s ease both;
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .booking-card:hover {
+      border-color: var(--border-dark);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+    }
+    .booking-card.status-active {
+      border-left: 4px solid var(--green);
+      background: linear-gradient(to right, var(--green-bg), var(--bg-card) 30%);
+    }
+    .booking-card.status-upcoming {
+      border-left: 4px solid #4a80cc;
+    }
+    .booking-card.status-done {
+      border-left: 4px solid var(--border-dark);
+      opacity: 0.6;
+    }
+
+    /* time column */
+    .card-time {
+      text-align: center;
+      min-width: 90px;
+    }
+    .card-time-slot {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .card-time-slot span {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 400;
+      color: var(--ink-soft);
+    }
+
+    /* person column */
+    .card-person {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .card-name {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--ink);
+    }
+    .card-meta {
+      font-size: 0.68rem;
+      color: var(--ink-soft);
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+    .card-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    /* location column */
+    .card-location {
+      text-align: right;
+      min-width: 130px;
+    }
+    .card-facility {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--ink-mid);
+      letter-spacing: 0.3px;
+    }
+    .card-room {
+      font-size: 0.68rem;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    /* status badge column */
+    .status-badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 0.3rem 0.75rem;
+      border-radius: 100px;
+      white-space: nowrap;
+      min-width: 80px;
+      text-align: center;
+    }
+    .status-badge.active   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+    .status-badge.upcoming { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-bdr); }
+    .status-badge.done     { background: var(--border);   color: var(--ink-soft); border: 1px solid var(--border-dark); }
+
+    /* ── EMPTY ── */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--ink-soft);
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+    .empty-state .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    /* ── NO RESULTS ── */
+    .no-results {
+      text-align: center;
+      padding: 2rem;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+    }
+
+    /* ── MACHINE TOGGLE ── */
+    .machine-panel {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1.8rem;
+    }
+    .machine-panel-title {
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .machine-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .machine-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--bg); border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-sm); padding: 0.5rem 0.9rem;
+      font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
+      cursor: pointer; transition: all 0.15s; user-select: none;
+    }
+    .machine-item.working { border-color: var(--green-bdr); background: var(--green-bg); color: var(--green); }
+    .machine-item.broken  { border-color: var(--red-bdr);   background: var(--red-bg);   color: var(--red); }
+    .machine-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .machine-item.working .machine-dot { background: var(--green); }
+    .machine-item.broken  .machine-dot { background: var(--red); }
+
+    /* checkin button */
+    .btn-checkin {
+      background: var(--green-bg); border: 1.5px solid var(--green-bdr);
+      border-radius: var(--radius-sm); padding: 0.3rem 0.8rem;
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem;
+      font-weight: 600; color: var(--green); cursor: pointer;
+      transition: all 0.15s; letter-spacing: 0.5px; white-space: nowrap;
+    }
+    .btn-checkin:hover { background: var(--green); color: white; }
+    .btn-checkin:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      .main { padding: 1rem; }
+      .topbar { padding: 0 1rem; }
+      .booking-card {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+      }
+      .card-location { text-align: left; }
+      .status-badge { justify-self: end; }
+      .search-wrap input { width: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title">Leo Marquard Reception</div>
+    <div class="topbar-sub">Laundry Key Desk</div>
+  </div>
+  <div class="topbar-right">
+    <div>
+      <div id="liveClock">00:00:00</div>
+      <div id="liveDate">—</div>
+    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadBookings()">
+      <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+      REFRESH
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- DATE NAV -->
+  <div class="date-nav">
+    <button class="nav-arrow" onclick="shiftDay(-1)">‹</button>
+    <button class="nav-arrow" onclick="shiftDay(1)">›</button>
+    <div class="date-nav-label">
+      <span id="dayLabel">MONDAY</span>
+      <span id="dateLabel" style="font-size:1.5rem; font-family:'Fraunces',serif; color:var(--ink); display:block; letter-spacing:-0.3px; margin-top:-2px;">1 January 2025</span>
+    </div>
+    <button class="today-btn" onclick="goToday()">TODAY</button>
+  </div>
+
+  <!-- MACHINE STATUS -->
+  <div class="machine-panel">
+    <div class="machine-panel-title">🔧 Machine Status — click to toggle</div>
+    <div class="machine-grid" id="machineGrid">
+      <div style="font-size:0.72rem;color:var(--ink-soft)">Loading machines…</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num" id="statTotal">—</div>
+      <div class="stat-label">Total Bookings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statActive" style="color: var(--green)">—</div>
+      <div class="stat-label">Active Now</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statUpcoming" style="color: var(--blue)">—</div>
+      <div class="stat-label">Upcoming</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="statDone" style="color: var(--ink-soft)">—</div>
+      <div class="stat-label">Completed</div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <span class="filter-label">Show:</span>
+    <button class="filter-btn active" data-filter="all"      onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn"        data-filter="active"   onclick="setFilter('active', this)">Active Now</button>
+    <button class="filter-btn"        data-filter="upcoming" onclick="setFilter('upcoming', this)">Upcoming</button>
+    <button class="filter-btn"        data-filter="done"     onclick="setFilter('done', this)">Completed</button>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search name or room…" oninput="renderCards()">
+    </div>
+  </div>
+
+  <!-- SECTION LABEL -->
+  <div class="section-header" id="sectionLabel">BOOKINGS</div>
+
+  <!-- CARDS -->
+  <div class="bookings-list" id="bookingsList">
+    <div class="empty-state">
+      <span class="empty-icon">📋</span>
+      Loading bookings…
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────
+let allBookings   = [];
+let viewDate      = new Date().toISOString().slice(0, 10);
+let activeFilter  = 'all';
+
+// ── CLOCK ──────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  document.getElementById('liveClock').textContent =
+    now.toLocaleTimeString('en-ZA', { hour12: false });
+  document.getElementById('liveDate').textContent =
+    now.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// re-render cards every minute so Active/Upcoming/Done updates live
+setInterval(renderCards, 60000);
+
+// ── DATE NAV ───────────────────────────────────────
+function updateDateLabels() {
+  const d = new Date(viewDate + 'T12:00:00');
+  document.getElementById('dayLabel').textContent =
+    d.toLocaleDateString('en-ZA', { weekday: 'long' }).toUpperCase();
+  document.getElementById('dateLabel').textContent =
+    d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function shiftDay(delta) {
+  const d = new Date(viewDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  viewDate = d.toISOString().slice(0, 10);
+  updateDateLabels();
+  renderCards();
+}
+
+function goToday() {
+  viewDate = new Date().toISOString().slice(0, 10);
+  updateDateLabels();
+  renderCards();
+}
+
+updateDateLabels();
+
+// ── FILTER ─────────────────────────────────────────
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+}
+
+// ── SLOT STATUS ────────────────────────────────────
+function getSlotStatus(dateStr, slotStr) {
+  // slotStr: "08:00 - 11:00"
+  const [startStr, endStr] = slotStr.split(' - ');
+  const now   = new Date();
+  const start = new Date(`${dateStr}T${startStr}:00`);
+  const end   = new Date(`${dateStr}T${endStr}:00`);
+
+  if (now >= start && now < end) return 'active';
+  if (now < start)               return 'upcoming';
+  return 'done';
+}
+
+// ── LOAD ───────────────────────────────────────────
+async function loadBookings() {
+  const btn  = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  btn.classList.add('spinning');
+  icon.classList.add('spinning');
+
+  try {
+    const res  = await fetch('/api/bookings');
+    allBookings = await res.json();
+    renderCards();
+  } catch (e) {
+    document.getElementById('bookingsList').innerHTML =
+      `<div class="empty-state"><span class="empty-icon">⚠️</span>Could not load bookings. Is the server running?</div>`;
+  } finally {
+    setTimeout(() => {
+      btn.classList.remove('spinning');
+      icon.classList.remove('spinning');
+    }, 600);
+  }
+}
+
+// ── RENDER ─────────────────────────────────────────
+function renderCards() {
+  const list   = document.getElementById('bookingsList');
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  // filter to selected date
+  let filtered = allBookings.filter(b => b.date === viewDate);
+
+  // apply search
+  if (search) {
+    filtered = filtered.filter(b =>
+      b.name.toLowerCase().includes(search) ||
+      (b.room_number || '').toLowerCase().includes(search) ||
+      b.email.toLowerCase().includes(search) ||
+      b.room.toLowerCase().includes(search)
+    );
+  }
+
+  // annotate with status
+  const annotated = filtered.map(b => ({
+    ...b,
+    status: getSlotStatus(b.date, b.slot)
+  }));
+
+  // apply status filter
+  const display = activeFilter === 'all'
+    ? annotated
+    : annotated.filter(b => b.status === activeFilter);
+
+  // sort: active → upcoming (by start time) → done
+  display.sort((a, b) => {
+    const order = { active: 0, upcoming: 1, done: 2 };
+    if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
+    return a.slot.localeCompare(b.slot);
+  });
+
+  // stats (based on full date, not filter)
+  const active   = annotated.filter(b => b.status === 'active').length;
+  const upcoming = annotated.filter(b => b.status === 'upcoming').length;
+  const done     = annotated.filter(b => b.status === 'done').length;
+  document.getElementById('statTotal').textContent    = annotated.length;
+  document.getElementById('statActive').textContent   = active;
+  document.getElementById('statUpcoming').textContent = upcoming;
+  document.getElementById('statDone').textContent     = done;
+
+  // section label
+  document.getElementById('sectionLabel').textContent =
+    `${display.length} BOOKING${display.length !== 1 ? 'S' : ''} · ${viewDate}`;
+
+  if (display.length === 0) {
+    const msg = search
+      ? `No results for "${search}"`
+      : annotated.length === 0
+        ? 'No bookings for this date'
+        : `No ${activeFilter} bookings`;
+    list.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span>${msg}</div>`;
+    return;
+  }
+
+  list.innerHTML = display.map((b, i) => {
+    const statusLabel   = b.status === 'active' ? 'ACTIVE NOW' : b.status === 'upcoming' ? 'UPCOMING' : 'DONE';
+    const facilityName  = b.facility === 'in-house' ? '🏠 In-House' : '🏚️ Basement';
+    const [startT, endT] = b.slot.split(' - ');
+    const canCheckin    = b.status === 'active' && !b.checked_in;
+    const roomNum       = b.room_number || b.roomNumber || '—';
+
+    return `
+      <div class="booking-card status-${b.status}" style="animation-delay:${i * 35}ms">
+        <div class="card-time">
+          <div class="card-time-slot">
+            ${startT}<span>to ${endT}</span>
+          </div>
+          ${canCheckin ? `<button class="btn-checkin" style="margin-top:0.5rem" onclick="checkIn(${b.id}, this)">✓ CHECK IN</button>` : ''}
+          ${b.checked_in ? `<div style="font-size:0.62rem;color:var(--green);margin-top:0.4rem;font-family:'IBM Plex Mono',monospace">✓ CHECKED IN</div>` : ''}
+        </div>
+        <div class="card-person">
+          <div class="card-name">${escHtml(b.name)}</div>
+          <div class="card-meta">
+            <span class="card-meta-item">🚪 Room ${escHtml(roomNum)}</span>
+            <span class="card-meta-item">✉ ${escHtml(b.email)}</span>
+          </div>
+        </div>
+        <div class="card-location">
+          <div class="card-facility">${facilityName}</div>
+          <div class="card-room">${escHtml(b.room)}</div>
+        </div>
+        <div class="status-badge ${b.status}">${b.db_status === 'abandoned' ? 'ABANDONED' : statusLabel}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── CHECK IN ───────────────────────────────────────
+async function checkIn(bookingId, btn) {
+  btn.disabled    = true;
+  btn.textContent = '…';
+  try {
+    await fetch(`/api/checkin/${bookingId}`, { method: 'POST' });
+    loadBookings();
+  } catch (e) {
+    btn.disabled    = false;
+    btn.textContent = '✓ CHECK IN';
+  }
+}
+
+// ── MACHINES ───────────────────────────────────────
+const ALL_MACHINES = [
+  { facility: 'in-house', room: '2nd Floor' },
+  { facility: 'in-house', room: '3rd Floor' },
+  { facility: 'in-house', room: '5th Floor' },
+  { facility: 'in-house', room: '7th Floor' },
+  { facility: 'in-house', room: '9th Floor' },
+  { facility: 'basement', room: 'Basement 1' },
+  { facility: 'basement', room: 'Basement 3' },
+];
+
+let machineStates = {};
+
+async function loadMachines() {
+  try {
+    const res  = await fetch('/api/machines');
+    const data = await res.json();
+    data.forEach(m => {
+      machineStates[`${m.facility}|${m.room}`] = m.working;
+    });
+  } catch (e) {}
+  renderMachines();
+}
+
+function renderMachines() {
+  const grid = document.getElementById('machineGrid');
+  grid.innerHTML = ALL_MACHINES.map(m => {
+    const key     = `${m.facility}|${m.room}`;
+    const working = machineStates[key] !== false;
+    const label   = m.facility === 'in-house' ? `🏠 ${m.room}` : `🏚️ ${m.room}`;
+    return `
+      <div class="machine-item ${working ? 'working' : 'broken'}" onclick="toggleMachine('${m.facility}', '${m.room}', ${!working})">
+        <div class="machine-dot"></div>
+        ${label}
+      </div>
+    `;
+  }).join('');
+}
+
+async function toggleMachine(facility, room, newWorking) {
+  const key = `${facility}|${room}`;
+  machineStates[key] = newWorking;
+  renderMachines();
+  try {
+    await fetch('/api/machines/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ facility, room, working: newWorking, note: newWorking ? '' : 'Out of service' })
+    });
+  } catch (e) {
+    machineStates[key] = !newWorking;
+    renderMachines();
+  }
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── INIT ───────────────────────────────────────────
+loadMachines();
+loadBookings();
+</script>
+</body>
+</html>

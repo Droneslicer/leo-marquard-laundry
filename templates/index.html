@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>UCT LEO MARQUARD LAUNDRY BOOKING</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #00e5b0;
+      --accent-dim: rgba(0, 229, 176, 0.15);
+      --accent-glow: rgba(0, 229, 176, 0.35);
+      --accent-bright: #6affd0;
+      --red: #ff5e6c;
+      --red-dim: rgba(255, 94, 108, 0.15);
+      --surface: rgba(14, 20, 34, 0.7);
+      --surface-hover: rgba(25, 35, 55, 0.85);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(0, 229, 176, 0.4);
+      --text-primary: #eef2ff;
+      --text-muted: #7a8aaa;
+      --text-label: #a0b4d0;
+      --bg-slot-avail: rgba(0, 80, 60, 0.5);
+      --bg-slot-taken: rgba(80, 20, 30, 0.5);
+      --radius-card: 2rem;
+      --radius-input: 1.4rem;
+      --radius-slot: 1rem;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: #060a12;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 10% 10%, rgba(0, 60, 50, 0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(0, 30, 60, 0.3) 0%, transparent 55%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      font-family: 'Syne', system-ui, sans-serif;
+    }
+
+    /* ─── TOAST ─────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      padding: 0.75rem 1.6rem;
+      border-radius: 3rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      backdrop-filter: blur(16px);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #toast.success {
+      background: rgba(0, 229, 176, 0.18);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 20px rgba(0, 229, 176, 0.2);
+    }
+    #toast.error {
+      background: rgba(255, 94, 108, 0.15);
+      border: 1px solid var(--red);
+      color: var(--red);
+      box-shadow: 0 0 20px rgba(255, 94, 108, 0.2);
+    }
+
+    /* ─── MAIN CARD ──────────────────────────── */
+    .app-container {
+      max-width: 1400px;
+      width: 100%;
+      background: rgba(10, 15, 26, 0.6);
+      backdrop-filter: blur(24px);
+      border-radius: 3rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255,255,255,0.04);
+      padding: 2rem 2rem 2.5rem;
+    }
+
+    /* ─── HEADER ─────────────────────────────── */
+    .system-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 2.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(0, 229, 176, 0.15);
+      padding-bottom: 1.2rem;
+    }
+    .title-section h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 30%, var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .title-section p {
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 2px;
+      margin-top: 5px;
+    }
+    .status-badge {
+      background: var(--accent-dim);
+      padding: 0.45rem 1.1rem;
+      border-radius: 40px;
+      border: 1px solid var(--border-accent);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      margin-right: 6px;
+      animation: pulse-dot 2s infinite;
+      vertical-align: middle;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    /* ─── LAYOUT ─────────────────────────────── */
+    .booking-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.8rem;
+    }
+    .form-section { flex: 1.2; min-width: 280px; }
+    .slots-section { flex: 2.2; min-width: 320px; }
+
+    /* ─── GLASS CARD ─────────────────────────── */
+    .glass-card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.5);
+      padding: 1.6rem;
+    }
+    .card-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─── INPUTS ─────────────────────────────── */
+    .input-field {
+      margin-bottom: 1.2rem;
+    }
+    .input-field label {
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      color: var(--text-label);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .input-field input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 0.8rem 1.1rem;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: 'Syne', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .input-field input.invalid {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(255, 94, 108, 0.2);
+    }
+    .input-field input::placeholder { color: rgba(255,255,255,0.2); }
+
+    /* ─── DROPDOWNS ──────────────────────────── */
+    .dropdown-field { margin-bottom: 1.2rem; }
+    .dropdown-label {
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      color: var(--text-label);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .dropdown-trigger {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 0.8rem 1.1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      color: var(--text-primary);
+      font-family: 'Syne', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .dropdown-trigger:hover:not([data-locked]) {
+      background: var(--surface-hover);
+      border-color: var(--border-accent);
+    }
+    .dropdown-trigger[data-locked] {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .dropdown-arrow {
+      color: var(--accent);
+      font-size: 1rem;
+      transition: transform 0.2s;
+    }
+    .dropdown-trigger.open .dropdown-arrow { transform: rotate(180deg); }
+
+    /* overlay */
+    .global-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      z-index: 90;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+    }
+    .global-overlay.active { opacity: 1; visibility: visible; }
+
+    /* menu — centered modal on screen */
+    .dropdown-menu {
+      position: fixed;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      background: rgba(12, 18, 32, 0.97);
+      backdrop-filter: blur(24px);
+      border-radius: 1.5rem;
+      border: 1px solid var(--border-accent);
+      box-shadow: 0 24px 40px -8px rgba(0,0,0,0.7);
+      z-index: 200;
+      overflow: hidden;
+      animation: menuIn 0.2s ease-out;
+    }
+    @keyframes menuIn {
+      from { opacity: 0; transform: translate(-50%, -46%) scale(0.95); }
+      to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    .dropdown-option {
+      padding: 0.85rem 1.4rem;
+      color: var(--text-primary);
+      font-family: 'Syne', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      cursor: pointer;
+      transition: background 0.15s, padding-left 0.15s;
+    }
+    .dropdown-option:last-child { border-bottom: none; }
+    .dropdown-option:hover {
+      background: var(--accent-dim);
+      padding-left: 1.8rem;
+      color: var(--accent);
+    }
+
+    /* ─── SELECTION PREVIEW ──────────────────── */
+    .selected-preview {
+      background: rgba(0, 229, 176, 0.05);
+      border: 1px solid rgba(0, 229, 176, 0.12);
+      border-radius: 1.2rem;
+      padding: 0.9rem 1.1rem;
+      margin-top: 1.2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      transition: all 0.3s ease;
+    }
+    .selected-preview.has-data {
+      border-color: rgba(0, 229, 176, 0.3);
+      color: var(--text-label);
+    }
+    .selected-preview .preview-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .selected-preview .preview-val {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ─── SLOT GRID ──────────────────────────── */
+    .slot-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2rem;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+    .slot-header-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .date-input-wrap input[type="date"] {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 2rem;
+      padding: 0.45rem 1rem;
+      color: var(--text-primary);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      outline: none;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .date-input-wrap input[type="date"]:focus {
+      border-color: var(--accent);
+    }
+
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 0.8rem;
+      min-height: 100px;
+    }
+
+    /* skeleton loader */
+    .slot-skeleton {
+      border-radius: var(--radius-slot);
+      height: 65px;
+      background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.04) 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    /* slot nodes */
+    .slot-node {
+      border-radius: var(--radius-slot);
+      padding: 0.85rem 0.4rem;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      font-size: 0.78rem;
+      border: 1px solid transparent;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+      cursor: pointer;
+      animation: slotFadeIn 0.3s ease both;
+      line-height: 1.5;
+    }
+    @keyframes slotFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .slot-node.available {
+      background: var(--bg-slot-avail);
+      border-color: rgba(62, 255, 160, 0.35);
+      color: #c8ffe0;
+    }
+    .slot-node.available:hover {
+      transform: translateY(-2px);
+      background: rgba(0, 120, 85, 0.6);
+      border-color: #3effa0;
+      box-shadow: 0 6px 20px rgba(0,255,140,0.2);
+    }
+    .slot-node.unavailable {
+      background: var(--bg-slot-taken);
+      border-color: rgba(255, 100, 100, 0.25);
+      color: #ff9090;
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+    .slot-node.selected-slot {
+      background: var(--accent) !important;
+      border-color: white !important;
+      color: #021812 !important;
+      font-weight: 700;
+      box-shadow: 0 0 18px rgba(0, 229, 176, 0.5);
+      transform: translateY(-2px) scale(1.03);
+    }
+
+    /* ─── BOOK BUTTON ────────────────────────── */
+    .btn-book {
+      background: linear-gradient(100deg, #00d4a8, #00916e);
+      border: none;
+      width: 100%;
+      padding: 1rem;
+      border-radius: 2rem;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      color: #010e0a;
+      margin-top: 1.5rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+      box-shadow: 0 6px 20px rgba(0,200,150,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-book::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .btn-book:hover::after { opacity: 1; }
+    .btn-book:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,200,150,0.4); }
+    .btn-book:active { transform: scale(0.98); }
+    .btn-book:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-book.loading {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
+    /* ─── LEGEND ─────────────────────────────── */
+    .legend {
+      display: flex;
+      gap: 1.2rem;
+      margin-top: 1rem;
+      justify-content: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .legend-dot.avail { background: #3effa0; }
+    .legend-dot.taken { background: var(--red); }
+    .legend-dot.sel   { background: var(--accent); }
+
+    /* ─── EMPTY STATE ────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding: 2rem 0;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─── MACHINE BANNER ─────────────────────── */
+    .machine-banner {
+      background: rgba(255, 94, 108, 0.12);
+      border: 1px solid rgba(255, 94, 108, 0.4);
+      border-radius: var(--radius-input);
+      padding: 0.7rem 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--red);
+      margin-bottom: 0.8rem;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    /* ─── OTP MODAL ──────────────────────────── */
+    .otp-modal {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 300;
+      width: min(380px, 92vw);
+      animation: menuIn 0.2s ease-out;
+    }
+    .otp-modal-inner {
+      background: rgba(10, 15, 26, 0.97);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--border-accent);
+      border-radius: 2rem;
+      padding: 2rem 1.8rem;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.7);
+      text-align: center;
+    }
+    .otp-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+    .otp-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+    .otp-sub strong { color: var(--accent); }
+    .otp-inputs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 0.8rem;
+    }
+    .otp-digit {
+      width: 44px; height: 52px;
+      background: rgba(0,0,0,0.5);
+      border: 1.5px solid var(--border);
+      border-radius: 0.8rem;
+      color: var(--text-primary);
+      font-family: 'DM Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 600;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .otp-digit:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .otp-error {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--red);
+      min-height: 1.2rem;
+    }
+    .otp-resend {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+    .otp-resend span { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+    /* ─── MY BOOKINGS BUTTON ─────────────────── */
+    .btn-my-bookings {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 0.6rem 1rem;
+      width: 100%;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      cursor: pointer;
+      margin-top: 0.8rem;
+      transition: border-color 0.15s, color 0.15s;
+      letter-spacing: 0.5px;
+    }
+    .btn-my-bookings:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ─── RESPONSIVE ─────────────────────────── */
+    @media (max-width: 780px) {
+      body { padding: 1rem; }
+      .app-container { padding: 1.2rem; border-radius: 2rem; }
+      .slots-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+      .title-section h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="toast"></div>
+<div class="global-overlay" id="globalOverlay"></div>
+
+<div class="app-container">
+  <div class="system-header">
+    <div class="title-section">
+      <h1>LEO MARQUARD</h1>
+      <p>UCT LAUNDRY BOOKING SYSTEM</p>
+    </div>
+    <div class="status-badge"><span class="status-dot"></span>SYSTEM ONLINE</div>
+  </div>
+
+  <div class="booking-panel">
+    <!-- LEFT PANEL -->
+    <div class="form-section">
+      <div class="glass-card">
+        <div class="card-label">🔐 Identification</div>
+
+        <div class="input-field">
+          <label>Full Name</label>
+          <input type="text" id="fullName" placeholder="John Doe" autocomplete="off">
+        </div>
+        <div class="input-field">
+          <label>UCT Email</label>
+          <input type="email" id="email" placeholder="ABCXYZ001@myuct.ac.za" autocomplete="off">
+        </div>
+        <div class="input-field">
+          <label>Room Number</label>
+          <input type="text" id="roomNumber" placeholder="100A">
+        </div>
+
+        <div class="dropdown-field">
+          <div class="dropdown-label">🏭 Facility Type</div>
+          <div class="dropdown-trigger" id="facilityTrigger">
+            <span id="facilitySelectedText">Select facility</span>
+            <span class="dropdown-arrow">▾</span>
+          </div>
+        </div>
+
+        <div class="dropdown-field">
+          <div class="dropdown-label">🚪 Laundry Room</div>
+          <div class="dropdown-trigger" id="roomTrigger" data-locked="true">
+            <span id="roomSelectedText">— First choose facility —</span>
+            <span class="dropdown-arrow">▾</span>
+          </div>
+        </div>
+
+        <div class="selected-preview" id="selectionPreview">
+          <div style="text-align:center; color: var(--text-muted);">— no selection yet —</div>
+        </div>
+        <button class="btn-my-bookings" onclick="openMyBookingsModal()">📋 View / Cancel My Bookings</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="slots-section">
+      <div class="glass-card">
+        <div class="slot-header">
+          <div class="slot-header-title">⚡ Available Time Slots</div>
+          <div class="date-input-wrap">
+            <input type="date" id="slotDate">
+          </div>
+        </div>
+
+        <div id="slotsContainer" class="slots-grid">
+          <div class="empty-state">Select facility &amp; room to view slots</div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot avail"></div>Available</div>
+          <div class="legend-item"><div class="legend-dot taken"></div>Booked</div>
+          <div class="legend-item"><div class="legend-dot sel"></div>Selected</div>
+        </div>
+
+        <button class="btn-book" id="bookButton" disabled>CONFIRM BOOKING</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
