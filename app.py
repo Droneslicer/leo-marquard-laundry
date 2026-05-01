@@ -6,11 +6,8 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from apscheduler.schedulers.background import BackgroundScheduler
-import smtplib
-import threading
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+import resend
 
 load_dotenv()
 
@@ -19,8 +16,15 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 MAIL_USER = os.getenv("MAIL_USER")
-MAIL_PASS = os.getenv("MAIL_PASSWORD")
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Initialize Resend
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+    print("[EMAIL] Resend initialized")
+else:
+    print("[EMAIL] ⚠️ RESEND_API_KEY not set - emails will not send")
 
 
 # Helper function to make datetime JSON serializable
@@ -99,84 +103,61 @@ def init_db():
 
 init_db()
 
-# ─── EMAIL (SINGLE WORKING VERSION) ─────────────────────────────
-# Gmail SMTP direct IP addresses (bypasses DNS lookup timeout)
-GMAIL_SMTP_IPS = [
-    ("142.250.150.108", 465, "ssl"),  # Gmail SMTP IP (SSL)
-    ("142.250.150.108", 587, "tls"),  # Same IP (TLS)
-]
 
-
+# ─── EMAIL USING RESEND (Works on Render Free Tier) ─────────────────
 def send_email(to_addr, subject, html_body):
-    """Send email using direct IP to bypass DNS timeout on Render"""
+    """Send email using Resend API (uses HTTPS port 443 - allowed on Render free tier)"""
 
-    def _send():
-        try:
-            if not MAIL_USER or not MAIL_PASS:
-                print(f"[EMAIL] Missing credentials: USER={bool(MAIL_USER)}, PASS={bool(MAIL_PASS)}")
-                return
+    if not RESEND_API_KEY:
+        print(f"[EMAIL] ❌ Cannot send to {to_addr} - RESEND_API_KEY not set")
+        return False
 
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = MAIL_USER
-            msg["To"] = to_addr
-            msg.attach(MIMEText(html_body, "html"))
+    try:
+        params = {
+            "from": MAIL_USER or "laundry@leomarquard.com",
+            "to": [to_addr],
+            "subject": subject,
+            "html": html_body,
+        }
 
-            for ip, port, method in GMAIL_SMTP_IPS:
-                try:
-                    if method == "ssl":
-                        server = smtplib.SMTP_SSL(ip, port, timeout=15)
-                    else:
-                        server = smtplib.SMTP(ip, port, timeout=15)
-                        server.starttls()
+        email = resend.Emails.send(params)
+        print(f"[EMAIL] ✅ Sent to {to_addr} via Resend (ID: {email.get('id', 'unknown')})")
+        return True
 
-                    server.login(MAIL_USER, MAIL_PASS)
-                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
-                    server.quit()
-                    print(f"[EMAIL] ✅ Sent to {to_addr} via {ip}:{port}")
-                    return
-                except Exception as e:
-                    print(f"[EMAIL] Failed {ip}:{port} - {e}")
-                    continue
-
-            print(f"[EMAIL] ❌ All methods failed for {to_addr}")
-
-        except Exception as e:
-            print(f"[EMAIL] ❌ Error: {e}")
-
-    thread = threading.Thread(target=_send)
-    thread.daemon = True
-    thread.start()
-    return True
+    except Exception as e:
+        print(f"[EMAIL] ❌ Failed to {to_addr}: {str(e)}")
+        return False
 
 
 def confirmation_email_html(name, slot, facility, room, date, booking_id):
     return f"""
-    <div style="font-family:monospace;background:#060a12;color:#eef2ff;padding:2rem;border-radius:1rem;max-width:400px;margin:auto">
-      <h2 style="color:#00e5b0;margin-bottom:0.5rem">Booking Confirmed</h2>
-      <p style="color:#7a8aaa;margin-bottom:1.5rem">Leo Marquard Laundry · UCT Res</p>
+    <div style="font-family:Arial, sans-serif; max-width:500px; margin:auto; padding:20px; background:#060a12; color:#eef2ff; border-radius:10px;">
+      <h2 style="color:#00e5b0;">✅ Booking Confirmed</h2>
       <p><strong>Booking ID:</strong> #{booking_id}</p>
       <p><strong>Name:</strong> {name}</p>
       <p><strong>Date:</strong> {date}</p>
       <p><strong>Time:</strong> {slot}</p>
       <p><strong>Facility:</strong> {facility}</p>
       <p><strong>Room:</strong> {room}</p>
-      <p style="margin-top:1.5rem">Head to reception to collect your access card at your slot time.</p>
+      <hr style="border-color:#333;">
+      <p>Head to reception to collect your access card at your slot time.</p>
+      <p style="color:#7a8aaa; font-size:12px;">Leo Marquard Laundry · UCT Res</p>
     </div>
     """
 
 
 def reminder_email_html(name, slot, facility, room, date):
     return f"""
-    <div style="font-family:monospace;background:#060a12;color:#eef2ff;padding:2rem;border-radius:1rem;max-width:400px;margin:auto">
-      <h2 style="color:#00e5b0;margin-bottom:0.5rem">Laundry Reminder</h2>
-      <p style="color:#7a8aaa;margin-bottom:1.5rem">Your slot starts in 10 minutes</p>
+    <div style="font-family:Arial, sans-serif; max-width:500px; margin:auto; padding:20px; background:#060a12; color:#eef2ff; border-radius:10px;">
+      <h2 style="color:#ffa500;">⏰ Laundry Reminder</h2>
+      <p>Your slot starts in 10 minutes!</p>
       <p><strong>Name:</strong> {name}</p>
       <p><strong>Date:</strong> {date}</p>
       <p><strong>Time:</strong> {slot}</p>
       <p><strong>Facility:</strong> {facility}</p>
       <p><strong>Room:</strong> {room}</p>
-      <p style="margin-top:1.5rem">Head to reception to collect your access card.</p>
+      <hr style="border-color:#333;">
+      <p>Head to reception to collect your access card.</p>
     </div>
     """
 
@@ -194,7 +175,7 @@ def job_send_reminders():
             for b in cur.fetchall():
                 if b["slot"].split(" - ")[0] == time_str:
                     facility_name = "In-House Laundry" if b["facility"] == "in-house" else "Basement Laundry"
-                    send_email(b["email"], "Your laundry slot starts in 10 minutes",
+                    send_email(b["email"], "⏰ Laundry slot starts in 10 minutes",
                                reminder_email_html(b["name"], b["slot"], facility_name, b["room"], b["date"]))
     finally:
         conn.close()
@@ -336,9 +317,14 @@ def book_slot():
         conn.close()
 
     facility_name = "In-House Laundry" if data["facility"] == "in-house" else "Basement Laundry"
-    send_email(email, "Laundry booking confirmed — Leo Marquard",
-               confirmation_email_html(data["name"], data["slot"], facility_name, data["room"], data["date"],
-                                       booking_id))
+
+    # Send email confirmation
+    email_sent = send_email(email, "✅ Laundry Booking Confirmed — Leo Marquard",
+                            confirmation_email_html(data["name"], data["slot"], facility_name, data["room"],
+                                                    data["date"], booking_id))
+
+    if not email_sent:
+        print(f"[WARNING] Booking #{booking_id} created but email failed to {email}")
 
     socketio.emit('new_booking', {
         'booking': make_json_serializable(dict(new_booking)),
@@ -515,8 +501,16 @@ def toggle_machine():
 @app.route("/test-email")
 def test_email():
     email = request.args.get("email", MAIL_USER)
-    send_email(email, "Test Email", "<h1>Test</h1><p>If you see this, email works!</p>")
-    return f"Test email sent to {email}. Check your inbox/spam."
+    if not email:
+        return "No email provided. Use ?email=your@email.com"
+
+    result = send_email(email, "Test Email from Leo Marquard Laundry",
+                        "<h1>✅ Test Successful!</h1><p>If you see this, email is working perfectly!</p>")
+
+    if result:
+        return f"✅ Test email sent to {email}. Check your inbox (and spam folder)."
+    else:
+        return f"❌ Failed to send test email to {email}. Check logs."
 
 
 # For gunicorn on Render
