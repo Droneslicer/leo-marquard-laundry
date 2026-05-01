@@ -519,6 +519,14 @@ def toggle_machine():
 
     return jsonify({"message": "Machine status updated"})
 
+@app.route("/check-email")
+def check_email():
+    return {
+        "mail_user_set": bool(os.getenv("MAIL_USER")),
+        "mail_pass_set": bool(os.getenv("MAIL_PASSWORD")),
+        "mail_user": os.getenv("MAIL_USER"),
+        "mail_pass_length": len(os.getenv("MAIL_PASSWORD", ""))
+    }
 
 # For gunicorn on Render
 application = app
