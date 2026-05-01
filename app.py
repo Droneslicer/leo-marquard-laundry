@@ -162,19 +162,20 @@ email_worker_thread = threading.Thread(target=email_worker, daemon=True)
 email_worker_thread.start()
 
 # ─── EMAIL FIX (Works with eventlet) ─────────────────────────────
+import socket
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import threading
 
 
 def send_email(to_addr, subject, html_body):
-    """Send email in background thread - works with eventlet"""
+    """Send email using direct IP to bypass DNS timeout on Render"""
 
     def _send():
         try:
             if not MAIL_USER or not MAIL_PASS:
-                print(f"[EMAIL] Missing credentials: USER={bool(MAIL_USER)}, PASS={bool(MAIL_PASS)}")
+                print("[EMAIL] Missing credentials")
                 return
 
             msg = MIMEMultipart("alternative")
@@ -183,34 +184,39 @@ def send_email(to_addr, subject, html_body):
             msg["To"] = to_addr
             msg.attach(MIMEText(html_body, "html"))
 
-            # Try SSL (port 465)
-            try:
-                server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
-                server.login(MAIL_USER, MAIL_PASS)
-                server.sendmail(MAIL_USER, to_addr, msg.as_string())
-                server.quit()
-                print(f"[EMAIL] ✅ Sent to {to_addr}")
-                return
-            except Exception as e:
-                print(f"[EMAIL] SSL failed: {e}, trying TLS...")
+            # Direct IP address for Gmail SMTP (bypasses DNS)
+            # This is the critical fix for "Lookup timed out"
+            smtp_servers = [
+                ("142.250.150.108", 465, "ssl"),  # Gmail SMTP IP
+                ("142.250.150.108", 587, "tls"),  # Same IP, different port
+            ]
 
-            # Fallback to TLS (port 587)
-            server = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
-            server.starttls()
-            server.login(MAIL_USER, MAIL_PASS)
-            server.sendmail(MAIL_USER, to_addr, msg.as_string())
-            server.quit()
-            print(f"[EMAIL] ✅ Sent to {to_addr} via TLS")
+            for ip, port, method in smtp_servers:
+                try:
+                    if method == "ssl":
+                        server = smtplib.SMTP_SSL(ip, port, timeout=15)
+                    else:
+                        server = smtplib.SMTP(ip, port, timeout=15)
+                        server.starttls()
+
+                    server.login(MAIL_USER, MAIL_PASS)
+                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
+                    server.quit()
+                    print(f"[EMAIL] ✅ Sent to {to_addr} via {ip}:{port}")
+                    return
+                except Exception as e:
+                    print(f"[EMAIL] Failed {ip}:{port} - {e}")
+                    continue
+
+            print(f"[EMAIL] ❌ All methods failed")
 
         except Exception as e:
-            print(f"[EMAIL] ❌ Failed to {to_addr}: {e}")
+            print(f"[EMAIL] ❌ Error: {e}")
 
-    # Run email in background thread (doesn't block eventlet)
     thread = threading.Thread(target=_send)
     thread.daemon = True
     thread.start()
     return True
-
 
 def confirmation_email_html(name, slot, facility, room, date, booking_id):
     return f"""
