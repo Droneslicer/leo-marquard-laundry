@@ -31,6 +31,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 # Fix: Remove async_mode or use 'threading' for Windows
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+application = socketio
+
 # Rest of your code remains the same...
 
 MAIL_USER = os.getenv("MAIL_USER")
