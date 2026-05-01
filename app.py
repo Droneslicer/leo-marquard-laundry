@@ -102,35 +102,74 @@ init_db()
 
 
 # ─── EMAIL ─────────────────────────────────────────────────────────
-def send_email(to_addr, subject, html_body):
-    try:
-        if not MAIL_USER or not MAIL_PASS:
-            print(f"[EMAIL ERROR] Missing credentials")
-            return False
+import threading
+import queue
+import time
 
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"Leo Marquard Laundry <{MAIL_USER}>"
-        msg["To"] = to_addr
-        msg.attach(MIMEText(html_body, "html"))
+# ─── EMAIL QUEUE SYSTEM (Permanent Fix) ─────────────────────────
+email_queue = queue.Queue()
+email_thread_running = True
 
-        # Try multiple ports
+
+def email_worker():
+    """Background worker that processes emails one by one"""
+    while email_thread_running:
         try:
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
-                server.login(MAIL_USER, MAIL_PASS)
-                server.sendmail(MAIL_USER, to_addr, msg.as_string())
-            print(f"[EMAIL SUCCESS] Sent to {to_addr}")
-            return True
-        except:
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
-                server.starttls()
-                server.login(MAIL_USER, MAIL_PASS)
-                server.sendmail(MAIL_USER, to_addr, msg.as_string())
-            print(f"[EMAIL SUCCESS] Sent to {to_addr}")
-            return True
-    except Exception as e:
-        print(f"[EMAIL ERROR] {e}")
+            email_task = email_queue.get(timeout=2)
+            if email_task is None:
+                break
+
+            to_addr, subject, html_body = email_task
+
+            if not MAIL_USER or not MAIL_PASS:
+                print(f"[EMAIL] Missing credentials - can't send to {to_addr}")
+                continue
+
+            try:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subject
+                msg["From"] = f"Leo Marquard Laundry <{MAIL_USER}>"
+                msg["To"] = to_addr
+                msg.attach(MIMEText(html_body, "html"))
+
+                # Try SSL first
+                try:
+                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
+                    server.login(MAIL_USER, MAIL_PASS)
+                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
+                    server.quit()
+                    print(f"[EMAIL] ✅ Sent to {to_addr}")
+                except:
+                    # Fallback to TLS
+                    server = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
+                    server.starttls()
+                    server.login(MAIL_USER, MAIL_PASS)
+                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
+                    server.quit()
+                    print(f"[EMAIL] ✅ Sent to {to_addr} (TLS)")
+
+            except Exception as e:
+                print(f"[EMAIL] ❌ Failed to {to_addr}: {e}")
+
+        except queue.Empty:
+            continue
+        except Exception as e:
+            print(f"[EMAIL] Worker error: {e}")
+
+
+# Start email worker thread when app starts
+email_worker_thread = threading.Thread(target=email_worker, daemon=True)
+email_worker_thread.start()
+
+
+def send_email(to_addr, subject, html_body):
+    """Queue email for sending (non-blocking)"""
+    if not to_addr:
         return False
+
+    email_queue.put((to_addr, subject, html_body))
+    print(f"[EMAIL] 📧 Queued for {to_addr}")
+    return True
 
 
 def confirmation_email_html(name, slot, facility, room, date, booking_id):
@@ -138,15 +177,13 @@ def confirmation_email_html(name, slot, facility, room, date, booking_id):
     <div style="font-family:monospace;background:#060a12;color:#eef2ff;padding:2rem;border-radius:1rem;max-width:400px;margin:auto">
       <h2 style="color:#00e5b0;margin-bottom:0.5rem">Booking Confirmed</h2>
       <p style="color:#7a8aaa;margin-bottom:1.5rem">Leo Marquard Laundry · UCT Res</p>
-      <table style="width:100%;border-collapse:collapse">
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Booking ID</td><td style="color:#eef2ff">#{booking_id}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Name</td><td style="color:#eef2ff">{name}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Date</td><td style="color:#eef2ff">{date}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Time</td><td style="color:#00e5b0;font-weight:700">{slot}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Facility</td><td style="color:#eef2ff">{facility}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Room</td><td style="color:#eef2ff">{room}</td></tr>
-      </table>
-      <p style="color:#7a8aaa;font-size:0.8rem;margin-top:1.5rem">Head to reception to collect your access card at your slot time.</p>
+      <p><strong>Booking ID:</strong> #{booking_id}</p>
+      <p><strong>Name:</strong> {name}</p>
+      <p><strong>Date:</strong> {date}</p>
+      <p><strong>Time:</strong> {slot}</p>
+      <p><strong>Facility:</strong> {facility}</p>
+      <p><strong>Room:</strong> {room}</p>
+      <p style="margin-top:1.5rem">Head to reception to collect your access card at your slot time.</p>
     </div>
     """
 
@@ -518,15 +555,6 @@ def toggle_machine():
     }, room='reception_dashboard')
 
     return jsonify({"message": "Machine status updated"})
-
-@app.route("/check-email")
-def check_email():
-    return {
-        "mail_user_set": bool(os.getenv("MAIL_USER")),
-        "mail_pass_set": bool(os.getenv("MAIL_PASSWORD")),
-        "mail_user": os.getenv("MAIL_USER"),
-        "mail_pass_length": len(os.getenv("MAIL_PASSWORD", ""))
-    }
 
 # For gunicorn on Render
 application = app
