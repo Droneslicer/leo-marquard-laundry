@@ -95,7 +95,7 @@
     }
     .refresh-btn {
       background: var(--ink);
-      color: #0a0600;
+      color: white;
       border: none;
       border-radius: var(--radius-sm);
       padding: 0.45rem 1rem;
@@ -154,7 +154,7 @@
     .filter-btn.active {
       background: var(--ink);
       border-color: var(--ink);
-      color: #0a0600;
+      color: white;
     }
     .search-wrap {
       margin-left: auto;
@@ -400,6 +400,36 @@
       font-size: 0.78rem;
     }
 
+    .btn-checkout {
+      background: var(--amber-bg);
+      border: 1.5px solid var(--amber-bdr);
+      border-radius: var(--radius-sm);
+      padding: 0.3rem 0.8rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--amber);
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      margin-top: 0.4rem;
+    }
+    .btn-checkout:hover { background: var(--amber); color: white; }
+
+    .late-badge {
+      background: var(--red-bg);
+      border: 1px solid var(--red-bdr);
+      border-radius: var(--radius-sm);
+      padding: 0.25rem 0.6rem;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--red);
+      letter-spacing: 0.5px;
+      margin-top: 0.3rem;
+      display: inline-block;
+    }
+
     /* ── MACHINE TOGGLE ── */
     .machine-panel {
       background: var(--bg-card);
@@ -442,6 +472,57 @@
     .btn-checkin:hover { background: var(--green); color: white; }
     .btn-checkin:disabled { opacity: 0.4; cursor: default; }
 
+    /* ── TOAST NOTIFICATIONS ── */
+    .toast-notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      z-index: 10000;
+      animation: slideIn 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .toast-success { background: var(--green); color: white; }
+    .toast-error { background: var(--red); color: white; }
+    .toast-warning { background: var(--amber); color: white; }
+    .toast-info { background: var(--blue); color: white; }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* ── WEBSOCKET STATUS INDICATOR ── */
+    .ws-status {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-dark);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ws-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .ws-dot.connected { background: var(--green); animation: pulse 2s infinite; }
+    .ws-dot.disconnected { background: var(--red); }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 700px) {
       .main { padding: 1rem; }
@@ -469,7 +550,7 @@
       <div id="liveClock">00:00:00</div>
       <div id="liveDate">—</div>
     </div>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadBookings()">
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
       <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
@@ -545,13 +626,125 @@
 
 </div>
 
+<!-- WebSocket Status Indicator -->
+<div class="ws-status" id="wsStatus">
+  <div class="ws-dot disconnected" id="wsDot"></div>
+  <span id="wsText">Connecting...</span>
+</div>
+
+<!-- Socket.IO Client Library -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 <script>
 // ── STATE ──────────────────────────────────────────
 let allBookings   = [];
 let viewDate      = new Date().toISOString().slice(0, 10);
 let activeFilter  = 'all';
+let socket = null;
+let wsConnected = false;
 
-// ── CLOCK ──────────────────────────────────────────
+// ── WEBSOCKET CONNECTION ──────────────────────────
+function initWebSocket() {
+    socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000
+    });
+
+    socket.on('connect', () => {
+        console.log('✅ WebSocket connected');
+        wsConnected = true;
+        updateWSStatus(true);
+        socket.emit('join_reception');
+        showToast('Live updates connected', 'success');
+    });
+
+    socket.on('disconnect', () => {
+        console.log('❌ WebSocket disconnected');
+        wsConnected = false;
+        updateWSStatus(false);
+        showToast('Disconnected from live updates', 'error');
+    });
+
+    socket.on('reconnect', () => {
+        console.log('🔄 WebSocket reconnected');
+        wsConnected = true;
+        updateWSStatus(true);
+        showToast('Reconnected to live updates', 'success');
+        refreshData();
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        wsConnected = false;
+        updateWSStatus(false);
+    });
+
+    socket.on('new_booking', (data) => {
+        console.log('📖 New booking received:', data);
+        showToast(`🔔 New booking: ${data.booking.name} - ${data.booking.slot}`, 'info');
+        playNotificationSound();
+        refreshData();
+    });
+
+    socket.on('booking_updated', (data) => {
+        console.log('🔄 Booking updated:', data);
+        const actionText = data.action === 'checkin' ? 'checked in' : 'checked out';
+        showToast(`📌 Booking #${data.booking_id} ${actionText}`, 'info');
+        refreshData();
+    });
+
+    socket.on('late_return_alert', (data) => {
+        console.log('⚠️ Late return:', data);
+        showToast(`⚠️ LATE RETURN: ${data.name} from room ${data.room} (${data.late_minutes} min late)`, 'warning');
+        playAlertSound();
+        refreshData();
+    });
+
+    socket.on('machine_updated', (data) => {
+        console.log('🔧 Machine updated:', data);
+        showToast(`🔧 Machine ${data.machine.facility}/${data.machine.room} status changed`, 'info');
+        loadMachines();
+    });
+}
+
+function updateWSStatus(connected) {
+    const wsDot = document.getElementById('wsDot');
+    const wsText = document.getElementById('wsText');
+    if (connected) {
+        wsDot.className = 'ws-dot connected';
+        wsText.textContent = 'Live Updates';
+    } else {
+        wsDot.className = 'ws-dot disconnected';
+        wsText.textContent = 'Reconnecting...';
+    }
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+function playNotificationSound() {
+    try {
+        const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCBzb3VuZA==');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log('Audio not supported'));
+    } catch(e) {}
+}
+
+function playAlertSound() {
+    try {
+        const audio = new Audio('data:audio/wav;base64,QWxlcnQgc291bmQ=');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Audio not supported'));
+    } catch(e) {}
+}
+
 function tickClock() {
   const now = new Date();
   document.getElementById('liveClock').textContent =
@@ -562,10 +755,8 @@ function tickClock() {
 setInterval(tickClock, 1000);
 tickClock();
 
-// re-render cards every minute so Active/Upcoming/Done updates live
 setInterval(renderCards, 60000);
 
-// ── DATE NAV ───────────────────────────────────────
 function updateDateLabels() {
   const d = new Date(viewDate + 'T12:00:00');
   document.getElementById('dayLabel').textContent =
@@ -590,7 +781,6 @@ function goToday() {
 
 updateDateLabels();
 
-// ── FILTER ─────────────────────────────────────────
 function setFilter(f, btn) {
   activeFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -598,9 +788,7 @@ function setFilter(f, btn) {
   renderCards();
 }
 
-// ── SLOT STATUS ────────────────────────────────────
 function getSlotStatus(dateStr, slotStr) {
-  // slotStr: "08:00 - 11:00"
   const [startStr, endStr] = slotStr.split(' - ');
   const now   = new Date();
   const start = new Date(`${dateStr}T${startStr}:00`);
@@ -611,37 +799,54 @@ function getSlotStatus(dateStr, slotStr) {
   return 'done';
 }
 
-// ── LOAD ───────────────────────────────────────────
+async function refreshData() {
+  await loadBookings();
+  await loadMachines();
+}
+
 async function loadBookings() {
   const btn  = document.getElementById('refreshBtn');
   const icon = document.getElementById('refreshIcon');
-  btn.classList.add('spinning');
-  icon.classList.add('spinning');
+  if (btn) btn.classList.add('spinning');
+  if (icon) icon.classList.add('spinning');
 
   try {
     const res  = await fetch('/api/bookings');
     allBookings = await res.json();
     renderCards();
+    updateStats();
   } catch (e) {
     document.getElementById('bookingsList').innerHTML =
       `<div class="empty-state"><span class="empty-icon">⚠️</span>Could not load bookings. Is the server running?</div>`;
   } finally {
     setTimeout(() => {
-      btn.classList.remove('spinning');
-      icon.classList.remove('spinning');
+      if (btn) btn.classList.remove('spinning');
+      if (icon) icon.classList.remove('spinning');
     }, 600);
   }
 }
 
-// ── RENDER ─────────────────────────────────────────
+function updateStats() {
+  const filtered = allBookings.filter(b => b.date === viewDate);
+  const annotated = filtered.map(b => ({
+    ...b,
+    status: getSlotStatus(b.date, b.slot)
+  }));
+  const active   = annotated.filter(b => b.status === 'active').length;
+  const upcoming = annotated.filter(b => b.status === 'upcoming').length;
+  const done     = annotated.filter(b => b.status === 'done').length;
+  document.getElementById('statTotal').textContent    = annotated.length;
+  document.getElementById('statActive').textContent   = active;
+  document.getElementById('statUpcoming').textContent = upcoming;
+  document.getElementById('statDone').textContent     = done;
+}
+
 function renderCards() {
   const list   = document.getElementById('bookingsList');
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
 
-  // filter to selected date
   let filtered = allBookings.filter(b => b.date === viewDate);
 
-  // apply search
   if (search) {
     filtered = filtered.filter(b =>
       b.name.toLowerCase().includes(search) ||
@@ -651,34 +856,21 @@ function renderCards() {
     );
   }
 
-  // annotate with status
   const annotated = filtered.map(b => ({
     ...b,
     status: getSlotStatus(b.date, b.slot)
   }));
 
-  // apply status filter
   const display = activeFilter === 'all'
     ? annotated
     : annotated.filter(b => b.status === activeFilter);
 
-  // sort: active → upcoming (by start time) → done
   display.sort((a, b) => {
     const order = { active: 0, upcoming: 1, done: 2 };
     if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
     return a.slot.localeCompare(b.slot);
   });
 
-  // stats (based on full date, not filter)
-  const active   = annotated.filter(b => b.status === 'active').length;
-  const upcoming = annotated.filter(b => b.status === 'upcoming').length;
-  const done     = annotated.filter(b => b.status === 'done').length;
-  document.getElementById('statTotal').textContent    = annotated.length;
-  document.getElementById('statActive').textContent   = active;
-  document.getElementById('statUpcoming').textContent = upcoming;
-  document.getElementById('statDone').textContent     = done;
-
-  // section label
   document.getElementById('sectionLabel').textContent =
     `${display.length} BOOKING${display.length !== 1 ? 'S' : ''} · ${viewDate}`;
 
@@ -696,8 +888,19 @@ function renderCards() {
     const statusLabel   = b.status === 'active' ? 'ACTIVE NOW' : b.status === 'upcoming' ? 'UPCOMING' : 'DONE';
     const facilityName  = b.facility === 'in-house' ? '🏠 In-House' : '🏚️ Basement';
     const [startT, endT] = b.slot.split(' - ');
-    const canCheckin    = b.status === 'active' && !b.checked_in;
+    const canCheckin    = b.status === 'active' && !b.checked_in && !b.checked_out;
     const roomNum       = b.room_number || b.roomNumber || '—';
+    const checkinBtn  = canCheckin
+      ? `<button class="btn-checkin" style="margin-top:0.5rem" onclick="checkIn(${b.id}, this)">✓ CHECK IN</button>`
+      : '';
+    const checkedInLabel = b.checked_in && !b.checked_out
+      ? `<div style="font-size:0.62rem;color:var(--green);margin-top:0.4rem;font-family:'IBM Plex Mono',monospace">✓ CARD ISSUED</div>
+         <button class="btn-checkout" onclick="checkOut(${b.id}, this)">↩ RETURN CARD</button>`
+      : '';
+    const checkedOutLabel = b.checked_out
+      ? `<div style="font-size:0.62rem;color:var(--ink-soft);margin-top:0.4rem;font-family:'IBM Plex Mono',monospace">✓ CARD RETURNED</div>
+         ${b.late_return ? `<div class="late-badge">⚠ LATE +${b.late_minutes}min</div>` : ''}`
+      : '';
 
     return `
       <div class="booking-card status-${b.status}" style="animation-delay:${i * 35}ms">
@@ -705,8 +908,9 @@ function renderCards() {
           <div class="card-time-slot">
             ${startT}<span>to ${endT}</span>
           </div>
-          ${canCheckin ? `<button class="btn-checkin" style="margin-top:0.5rem" onclick="checkIn(${b.id}, this)">✓ CHECK IN</button>` : ''}
-          ${b.checked_in ? `<div style="font-size:0.62rem;color:var(--green);margin-top:0.4rem;font-family:'IBM Plex Mono',monospace">✓ CHECKED IN</div>` : ''}
+          ${checkinBtn}
+          ${checkedInLabel}
+          ${checkedOutLabel}
         </div>
         <div class="card-person">
           <div class="card-name">${escHtml(b.name)}</div>
@@ -719,26 +923,45 @@ function renderCards() {
           <div class="card-facility">${facilityName}</div>
           <div class="card-room">${escHtml(b.room)}</div>
         </div>
-        <div class="status-badge ${b.status}">${b.db_status === 'abandoned' ? 'ABANDONED' : statusLabel}</div>
+        <div class="status-badge ${b.status}">${b.status === 'abandoned' ? 'ABANDONED' : statusLabel}</div>
       </div>
     `;
   }).join('');
 }
 
-// ── CHECK IN ───────────────────────────────────────
 async function checkIn(bookingId, btn) {
   btn.disabled    = true;
   btn.textContent = '…';
   try {
-    await fetch(`/api/checkin/${bookingId}`, { method: 'POST' });
-    loadBookings();
+    const res = await fetch(`/api/checkin/${bookingId}`, { method: 'POST' });
+    if (res.ok) {
+      showToast(`✅ Checked in booking #${bookingId}`, 'success');
+      refreshData();
+    }
   } catch (e) {
     btn.disabled    = false;
     btn.textContent = '✓ CHECK IN';
   }
 }
 
-// ── MACHINES ───────────────────────────────────────
+async function checkOut(bookingId, btn) {
+  btn.disabled    = true;
+  btn.textContent = '…';
+  try {
+    const res  = await fetch(`/api/checkout/${bookingId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.late) {
+      showToast(`⚠ LATE RETURN: ${data.late_minutes} minutes late`, 'warning');
+    } else {
+      showToast(`✅ Checked out booking #${bookingId}`, 'success');
+    }
+    refreshData();
+  } catch (e) {
+    btn.disabled    = false;
+    btn.textContent = '↩ RETURN CARD';
+  }
+}
+
 const ALL_MACHINES = [
   { facility: 'in-house', room: '2nd Floor' },
   { facility: 'in-house', room: '3rd Floor' },
@@ -764,6 +987,7 @@ async function loadMachines() {
 
 function renderMachines() {
   const grid = document.getElementById('machineGrid');
+  if (!grid) return;
   grid.innerHTML = ALL_MACHINES.map(m => {
     const key     = `${m.facility}|${m.room}`;
     const working = machineStates[key] !== false;
@@ -801,9 +1025,11 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// ── INIT ───────────────────────────────────────────
+// ── INITIALIZATION ──
+initWebSocket();
 loadMachines();
 loadBookings();
+setInterval(refreshData, 30000);
 </script>
 </body>
 </html>

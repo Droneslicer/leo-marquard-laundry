@@ -8,6 +8,10 @@ let isBooking          = false;
 let machineWorking     = true;
 let machineNote        = "";
 
+// 🟢 WebSocket state
+let socket = null;
+let wsConnected = false;
+
 // ===================== DOM =====================
 const facilityTrigger      = document.getElementById('facilityTrigger');
 const roomTrigger          = document.getElementById('roomTrigger');
@@ -43,6 +47,122 @@ dateInput.min   = today;
 dateInput.max   = today;   // today only
 dateInput.disabled = true; // no need to change date
 currentDate     = today;
+
+// ===================== WEBSOCKET INITIALIZATION =====================
+function initWebSocket() {
+    socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+    });
+
+    socket.on('connect', () => {
+        console.log('✅ WebSocket connected');
+        wsConnected = true;
+        showToast('Live updates connected', 'success');
+        updateWSStatus(true);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('❌ WebSocket disconnected');
+        wsConnected = false;
+        updateWSStatus(false);
+    });
+
+    socket.on('reconnect', () => {
+        console.log('🔄 WebSocket reconnected');
+        wsConnected = true;
+        showToast('Reconnected to live updates', 'success');
+        updateWSStatus(true);
+        // Refresh current view on reconnect
+        if (currentFacility && currentRoom) renderSlots();
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error);
+        wsConnected = false;
+        updateWSStatus(false);
+    });
+
+    // 🟢 Listen for slot availability changes
+    socket.on('slots_updated', (data) => {
+        console.log('Slots updated:', data);
+        if (data.facility === currentFacility &&
+            data.room === currentRoom &&
+            data.date === currentDate) {
+            // Refresh slots if it affects current view
+            renderSlots();
+            showToast('Slot availability updated', 'info');
+        }
+    });
+
+    // 🟢 Listen for booking conflicts
+    socket.on('booking_conflict', (data) => {
+        if (data.slot === selectedSlotLabel &&
+            data.facility === currentFacility &&
+            data.room === currentRoom) {
+            showToast('⚠️ This slot was just booked by someone else', 'error');
+            selectedSlotLabel = null;
+            updatePreview();
+            updateBookButton();
+            renderSlots();
+        }
+    });
+
+    // 🟢 Listen for machine status changes
+    socket.on('machine_updated', (data) => {
+        if (data.machine && data.machine.facility === currentFacility &&
+            data.machine.room === currentRoom) {
+            machineWorking = data.machine.working;
+            machineNote = data.machine.note || "";
+            renderSlots();
+            if (!data.machine.working) {
+                showToast(`⚠️ Machine is now out of service: ${machineNote}`, 'warning');
+            } else {
+                showToast(`✅ Machine is now available`, 'success');
+            }
+        }
+    });
+}
+
+// Update connection status in UI
+function updateWSStatus(connected) {
+    const statusEl = document.getElementById('wsStatus');
+    if (statusEl) {
+        if (connected) {
+            statusEl.innerHTML = '🟢 Live Updates';
+            statusEl.style.background = 'rgba(0, 229, 176, 0.15)';
+            statusEl.style.color = '#00e5b0';
+        } else {
+            statusEl.innerHTML = '🔴 Reconnecting...';
+            statusEl.style.background = 'rgba(255, 94, 108, 0.15)';
+            statusEl.style.color = '#ff5e6c';
+        }
+    }
+}
+
+// Add WebSocket status indicator to page
+function addWSStatusIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'wsStatus';
+    indicator.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-family: 'DM Mono', monospace;
+        font-size: 0.7rem;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        pointer-events: none;
+        transition: all 0.3s ease;
+    `;
+    indicator.innerHTML = '🔌 Connecting...';
+    document.body.appendChild(indicator);
+}
 
 // Show booking window status
 function getBookingWindowStatus(facility) {
@@ -97,7 +217,6 @@ function closeDropdowns() {
 
 globalOverlay.addEventListener("click", () => {
   closeDropdowns();
-  closeOtpModal();
   closeMyBookingsModal();
   globalOverlay.classList.remove("active");
 });
@@ -233,11 +352,30 @@ async function renderSlots() {
     }
 
     const slots = FACILITY_CONFIG[currentFacility].getTimeSlots();
+
+    // If our selected slot got taken by someone else, clear it
+    if (selectedSlotLabel && takenSlots.includes(selectedSlotLabel)) {
+      selectedSlotLabel = null;
+      updatePreview();
+      updateBookButton();
+      showToast("Your selected slot was just taken — please choose another", "error");
+
+      // Emit slot conflict to server for logging
+      if (socket && wsConnected) {
+        socket.emit('slot_conflict', {
+          facility: currentFacility,
+          room: currentRoom,
+          slot: selectedSlotLabel,
+          date: currentDate
+        });
+      }
+    }
+
     slotsContainer.innerHTML = "";
 
     slots.forEach((slot, i) => {
       const isTaken    = takenSlots.includes(slot) || !machineWorking;
-      const isSelected = selectedSlotLabel === slot;
+      const isSelected = !isTaken && selectedSlotLabel === slot;
       const div        = document.createElement("div");
 
       div.className      = `slot-node ${isTaken ? "unavailable" : "available"}${isSelected ? " selected-slot" : ""}`;
@@ -294,113 +432,6 @@ emailInput.addEventListener("input", () => {
   if (emailInput.value.endsWith("@myuct.ac.za")) emailInput.classList.remove("invalid");
 });
 
-// ===================== OTP MODAL =====================
-function openOtpModal() {
-  const existing = document.getElementById("otpModal");
-  if (existing) existing.remove();
-
-  const modal = document.createElement("div");
-  modal.id        = "otpModal";
-  modal.className = "otp-modal";
-  modal.innerHTML = `
-    <div class="otp-modal-inner">
-      <div class="otp-title">📬 Check Your Email</div>
-      <div class="otp-sub">A 6-digit code was sent to<br><strong>${emailInput.value.trim()}</strong></div>
-      <div class="otp-inputs" id="otpInputs">
-        ${[0,1,2,3,4,5].map(i => `<input class="otp-digit" maxlength="1" inputmode="numeric" id="otp${i}">`).join('')}
-      </div>
-      <div class="otp-error" id="otpError"></div>
-      <button class="btn-book" id="otpVerifyBtn" style="margin-top:1.2rem">VERIFY & BOOK</button>
-      <div class="otp-resend">Didn't get it? <span id="otpResend" onclick="resendOtp()">Resend code</span></div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-  globalOverlay.classList.add("active");
-
-  // OTP digit auto-advance
-  const digits = modal.querySelectorAll('.otp-digit');
-  digits.forEach((input, idx) => {
-    input.addEventListener('input', () => {
-      input.value = input.value.replace(/\D/g, '');
-      if (input.value && idx < 5) digits[idx + 1].focus();
-      if (getOtpValue().length === 6) verifyOtp();
-    });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !input.value && idx > 0) digits[idx - 1].focus();
-    });
-  });
-  digits[0].focus();
-
-  document.getElementById("otpVerifyBtn").onclick = verifyOtp;
-}
-
-function closeOtpModal() {
-  const m = document.getElementById("otpModal");
-  if (m) m.remove();
-  globalOverlay.classList.remove("active");
-}
-
-function getOtpValue() {
-  return [0,1,2,3,4,5].map(i => {
-    const el = document.getElementById(`otp${i}`);
-    return el ? el.value : '';
-  }).join('');
-}
-
-async function resendOtp() {
-  const email   = emailInput.value.trim();
-  const payload = buildPayload();
-  await fetch("/api/send-otp", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, payload })
-  });
-  showToast("New code sent!", "success");
-}
-
-async function verifyOtp() {
-  const otp   = getOtpValue();
-  const email = emailInput.value.trim().toLowerCase();
-
-  if (otp.length < 6) {
-    document.getElementById("otpError").textContent = "Enter all 6 digits";
-    return;
-  }
-
-  const btn = document.getElementById("otpVerifyBtn");
-  btn.disabled    = true;
-  btn.textContent = "Verifying…";
-
-  try {
-    const res  = await fetch("/api/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp })
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      document.getElementById("otpError").textContent = data.error || "Invalid code";
-      btn.disabled    = false;
-      btn.textContent = "VERIFY & BOOK";
-      return;
-    }
-
-    closeOtpModal();
-    globalOverlay.classList.remove("active");
-    showToast("✓ Booking confirmed! Check your email.", "success");
-    selectedSlotLabel = null;
-    updatePreview();
-    await renderSlots();
-
-  } catch (err) {
-    document.getElementById("otpError").textContent = "Server error, try again";
-    btn.disabled    = false;
-    btn.textContent = "VERIFY & BOOK";
-  }
-}
-
 // ===================== BOOKING FLOW =====================
 function buildPayload() {
   return {
@@ -422,23 +453,44 @@ async function handleBooking() {
   isBooking = true;
   bookButton.disabled    = true;
   bookButton.classList.add("loading");
-  bookButton.textContent = "Sending code…";
+  bookButton.textContent = "Booking…";
 
   try {
     const payload = buildPayload();
-    const res     = await fetch("/api/send-otp", {
+    const res     = await fetch("/api/book", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: payload.email, payload })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.error || "Failed to send code", "error");
+      showToast(data.error || "Booking failed", "error");
+      // If conflict, refresh slots immediately
+      if (res.status === 409) {
+        renderSlots();
+      }
       return;
     }
 
-    openOtpModal();
+    showToast("✓ Booking confirmed! Check your email.", "success");
+
+    // Emit booking success for real-time updates
+    if (socket && wsConnected) {
+      socket.emit('booking_made', {
+        booking_id: data.booking_id,
+        facility: currentFacility,
+        room: currentRoom,
+        slot: selectedSlotLabel,
+        date: currentDate,
+        name: fullNameInput.value.trim()
+      });
+    }
+
+    selectedSlotLabel = null;  // clear before render so no green flash
+    updatePreview();
+    updateBookButton();
+    await renderSlots();
 
   } catch (err) {
     showToast("Server error — try again", "error");
@@ -451,6 +503,12 @@ async function handleBooking() {
 }
 
 bookButton.addEventListener("click", handleBooking);
+
+// ===================== AUTO-REFRESH SLOTS =====================
+// Refresh every 30 seconds so all devices stay in sync
+setInterval(() => {
+  if (currentFacility && currentRoom) renderSlots();
+}, 30000);
 
 // ===================== MY BOOKINGS MODAL =====================
 function openMyBookingsModal() {
@@ -499,10 +557,7 @@ async function loadMyBookings(email) {
     }
 
     list.innerHTML = data.map(b => {
-      const now        = new Date();
-      const slotStart  = new Date(`${b.date}T${b.slot.split(' - ')[0]}:00`);
-      const canCancel  = b.status === 'confirmed' && now < slotStart - 86400000;
-      const statusColor = b.status === 'confirmed' ? 'var(--accent)' : b.status === 'cancelled' ? 'var(--red)' : 'var(--text-muted)';
+      const statusColor = b.status === 'confirmed' ? 'var(--accent)' : 'var(--text-muted)';
 
       return `
         <div style="background:rgba(0,0,0,0.3);border-radius:1rem;padding:0.9rem 1rem;margin-bottom:0.6rem;border:1px solid var(--border)">
@@ -511,36 +566,23 @@ async function loadMyBookings(email) {
             <span style="font-size:0.65rem;color:${statusColor};text-transform:uppercase;font-family:'DM Mono',monospace">${b.status}</span>
           </div>
           <div style="font-size:0.72rem;color:var(--text-muted);font-family:'DM Mono',monospace">${b.facility === 'in-house' ? '🏠' : '🏚️'} ${b.room}</div>
-          ${canCancel ? `<button onclick="cancelBooking(${b.id})" style="margin-top:0.6rem;background:var(--red-dim);border:1px solid var(--red);color:var(--red);border-radius:0.8rem;padding:0.3rem 0.8rem;font-size:0.7rem;cursor:pointer;font-family:'DM Mono',monospace">Cancel booking</button>` : ''}
+          ${b.checked_in ? '<div style="font-size:0.65rem;color:var(--accent);margin-top:0.3rem">✓ Card collected</div>' : ''}
+          ${b.checked_out ? '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.3rem">✓ Card returned</div>' : ''}
+          ${b.late_return ? `<div style="font-size:0.65rem;color:#ff5e6c;margin-top:0.3rem">⚠ Late return: ${b.late_minutes} min</div>` : ''}
         </div>
       `;
     }).join('');
-
-  } catch (e) {
-    list.innerHTML = `<div style="color:var(--red);font-size:0.8rem;text-align:center">Failed to load</div>`;
+  } catch (err) {
+    list.innerHTML = `<div style="text-align:center;color:#ff5e6c;font-size:0.8rem;padding:1rem">Failed to load bookings</div>`;
   }
 }
 
-async function cancelBooking(bookingId) {
-  const email = emailInput.value.trim().toLowerCase();
-  if (!confirm("Cancel this booking?")) return;
+// ===================== INITIALIZATION =====================
+// Add WebSocket status indicator
+addWSStatusIndicator();
 
-  const res  = await fetch(`/api/cancel/${bookingId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email })
-  });
-  const data = await res.json();
+// Initialize WebSocket
+initWebSocket();
 
-  if (!res.ok) {
-    showToast(data.error || "Could not cancel", "error");
-    return;
-  }
-
-  showToast("Booking cancelled", "success");
-  loadMyBookings(email);
-  await renderSlots();
-}
-
-// ===================== INIT =====================
+// Initial render
 renderSlots();
