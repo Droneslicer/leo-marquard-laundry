@@ -1,5 +1,4 @@
 import os
-import json
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta
@@ -7,8 +6,8 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-from functools import lru_cache
 from psycopg2 import pool
+from functools import lru_cache
 
 load_dotenv()
 
@@ -18,7 +17,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Database connection pool (FASTER!)
+# Database connection pool
 db_pool = None
 
 
@@ -40,7 +39,6 @@ def return_db(conn):
 
 
 def make_json_serializable(obj):
-    """Convert datetime objects to ISO format strings"""
     if isinstance(obj, dict):
         return {key: make_json_serializable(value) for key, value in obj.items()}
     elif isinstance(obj, list):
@@ -51,7 +49,7 @@ def make_json_serializable(obj):
         return obj
 
 
-# ─── DATABASE INIT ──────────────────────────────────────────────────────
+# ─── DATABASE INIT ──────────────────────────────────────────────
 def init_db():
     conn = get_db()
     try:
@@ -84,7 +82,6 @@ def init_db():
                     UNIQUE(facility, room)
                 );
             """)
-            # Insert default machines if empty
             cur.execute("SELECT COUNT(*) FROM machines")
             if cur.fetchone()[0] == 0:
                 default_machines = [
@@ -106,9 +103,8 @@ def init_db():
 init_db()
 
 
-# ─── BACKGROUND JOBS (Optimized - Less Frequent) ──────────────────────────────
+# ─── BACKGROUND JOBS ──────────────────────────────────────────────
 def job_scavenge_abandoned():
-    """Mark abandoned bookings (no check-in 15 min after slot start)"""
     now = datetime.now()
     conn = get_db()
     try:
@@ -127,17 +123,11 @@ def job_scavenge_abandoned():
         return_db(conn)
 
 
-# Start scheduler with less frequent jobs (saves resources)
 scheduler = BackgroundScheduler()
 scheduler.add_job(job_scavenge_abandoned, "interval", minutes=10)
 scheduler.start()
 
 # ─── HELPERS ───────────────────────────────────────────────────────
-FACILITY_CONFIG = {
-    "in-house": {"rooms": ["2nd Floor", "3rd Floor", "5th Floor", "7th Floor", "9th Floor"]},
-    "basement": {"rooms": ["Basement 1", "Basement 3"]}
-}
-
 FACILITY_OPEN_HOUR = {"in-house": 6, "basement": 6}
 
 
@@ -148,7 +138,7 @@ def is_booking_allowed(date_str, facility, slot_str=None):
         if d != today:
             return False, "You can only book for today"
         if datetime.now().hour < FACILITY_OPEN_HOUR.get(facility, 6):
-            return False, f"Bookings open at 06:00 AM"
+            return False, "Bookings open at 06:00 AM"
         if slot_str:
             slot_start = datetime.strptime(f"{date_str} {slot_str.split(' - ')[0]}", "%Y-%m-%d %H:%M")
             if datetime.now() >= slot_start - timedelta(minutes=30):
@@ -206,7 +196,6 @@ def book_slot():
     conn = get_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # Check slot conflict
             cur.execute("""
                 SELECT id FROM bookings
                 WHERE facility=%s AND room=%s AND date=%s AND slot=%s AND status='confirmed'
@@ -214,13 +203,11 @@ def book_slot():
             if cur.fetchone():
                 return jsonify({"error": "That slot was just taken. Please choose another."}), 409
 
-            # One booking per person per day
             cur.execute("SELECT id FROM bookings WHERE email=%s AND date=%s AND status='confirmed'",
                         (email, data["date"]))
             if cur.fetchone():
                 return jsonify({"error": "You already have a booking today"}), 409
 
-            # Check machine
             cur.execute("SELECT working FROM machines WHERE facility=%s AND room=%s", (data["facility"], data["room"]))
             machine = cur.fetchone()
             if machine and not machine["working"]:
@@ -238,7 +225,6 @@ def book_slot():
     finally:
         return_db(conn)
 
-    # WebSocket update
     socketio.emit('new_booking', {
         'booking': make_json_serializable(dict(new_booking)),
         'timestamp': datetime.now().isoformat()
@@ -252,10 +238,12 @@ def book_slot():
 
 
 @app.route("/api/availability")
+@lru_cache(maxsize=128)
 def availability():
     facility = request.args.get("facility")
     room = request.args.get("room")
     date = request.args.get("date")
+    cache_buster = request.args.get("_t", "")
 
     conn = get_db()
     try:
@@ -273,13 +261,13 @@ def availability():
     return jsonify({
         "taken": taken,
         "machine_working": machine["working"] if machine else True,
-        "machine_note": machine["note"] if machine else ""
+        "machine_note": machine["note"] if machine else "",
+        "_cache": cache_buster
     })
 
 
 @app.route("/api/bookings")
 def get_bookings():
-    """All bookings for reception"""
     conn = get_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -297,7 +285,6 @@ def get_bookings():
 
 @app.route("/api/my-bookings")
 def my_bookings():
-    """Get bookings for a specific user - FAST with index"""
     email = request.args.get("email", "").strip().lower()
     if not email:
         return jsonify([])
@@ -307,12 +294,7 @@ def my_bookings():
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
                 SELECT id, name, date, slot, facility, room, status, 
-                       checked_in, checked_out, late_return, late_minutes,
-                       CASE 
-                           WHEN checked_in THEN '✅ Card Collected'
-                           WHEN status = 'abandoned' THEN '❌ Abandoned'
-                           ELSE '⏳ Waiting'
-                       END as card_status
+                       checked_in, checked_out, late_return, late_minutes
                 FROM bookings 
                 WHERE email = %s 
                 ORDER BY date DESC, slot DESC
@@ -432,7 +414,6 @@ def toggle_machine():
     return jsonify({"message": "Machine status updated"})
 
 
-# For gunicorn on Render
 application = app
 
 if __name__ == "__main__":
