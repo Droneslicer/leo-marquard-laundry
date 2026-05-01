@@ -2,12 +2,15 @@ import os
 import json
 import psycopg2
 import psycopg2.extras
+import threading
+import smtplib
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from apscheduler.schedulers.background import BackgroundScheduler
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
-import resend
 
 load_dotenv()
 
@@ -15,16 +18,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Environment variables
 MAIL_USER = os.getenv("MAIL_USER")
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")  # This is the one!
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Initialize Resend
-RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-if RESEND_API_KEY:
-    resend.api_key = RESEND_API_KEY
-    print("[EMAIL] Resend initialized")
-else:
-    print("[EMAIL] ⚠️ RESEND_API_KEY not set - emails will not send")
+print(f"[STARTUP] MAIL_USER: {'set' if MAIL_USER else 'MISSING'}")
+print(f"[STARTUP] MAIL_PASSWORD: {'set' if MAIL_PASSWORD else 'MISSING'}")
+print(f"[STARTUP] DATABASE_URL: {'set' if DATABASE_URL else 'MISSING'}")
 
 
 # Helper function to make datetime JSON serializable
@@ -104,29 +105,52 @@ def init_db():
 init_db()
 
 
-# ─── EMAIL USING RESEND (Works on Render Free Tier) ─────────────────
+# ─── EMAIL USING PORT 2525 (Allowed on Render Free Tier) ─────────────────
 def send_email(to_addr, subject, html_body):
-    """Send email using Resend API (uses HTTPS port 443 - allowed on Render free tier)"""
+    """Send email using Gmail SMTP on port 2525 (bypasses Render block)"""
 
-    if not RESEND_API_KEY:
-        print(f"[EMAIL] ❌ Cannot send to {to_addr} - RESEND_API_KEY not set")
-        return False
+    def _send():
+        try:
+            if not MAIL_USER or not MAIL_PASSWORD:
+                print(
+                    f"[EMAIL] Missing credentials - MAIL_USER: {bool(MAIL_USER)}, MAIL_PASSWORD: {bool(MAIL_PASSWORD)}")
+                return
 
-    try:
-        params = {
-            "from": MAIL_USER or "laundry@leomarquard.com",
-            "to": [to_addr],
-            "subject": subject,
-            "html": html_body,
-        }
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = MAIL_USER
+            msg["To"] = to_addr
+            msg.attach(MIMEText(html_body, "html"))
 
-        email = resend.Emails.send(params)
-        print(f"[EMAIL] ✅ Sent to {to_addr} via Resend (ID: {email.get('id', 'unknown')})")
-        return True
+            # Try port 2525 first (allowed on free tier), then fallback
+            ports_to_try = [2525, 587, 465]
 
-    except Exception as e:
-        print(f"[EMAIL] ❌ Failed to {to_addr}: {str(e)}")
-        return False
+            for port in ports_to_try:
+                try:
+                    if port == 465:
+                        server = smtplib.SMTP_SSL("smtp.gmail.com", port, timeout=30)
+                    else:
+                        server = smtplib.SMTP("smtp.gmail.com", port, timeout=30)
+                        server.starttls()
+
+                    server.login(MAIL_USER, MAIL_PASSWORD)
+                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
+                    server.quit()
+                    print(f"[EMAIL] ✅ Sent to {to_addr} via port {port}")
+                    return
+                except Exception as e:
+                    print(f"[EMAIL] Port {port} failed: {e}")
+                    continue
+
+            print(f"[EMAIL] ❌ All ports failed for {to_addr}")
+
+        except Exception as e:
+            print(f"[EMAIL] ❌ Error: {e}")
+
+    thread = threading.Thread(target=_send)
+    thread.daemon = True
+    thread.start()
+    return True
 
 
 def confirmation_email_html(name, slot, facility, room, date, booking_id):
@@ -318,13 +342,9 @@ def book_slot():
 
     facility_name = "In-House Laundry" if data["facility"] == "in-house" else "Basement Laundry"
 
-    # Send email confirmation
-    email_sent = send_email(email, "✅ Laundry Booking Confirmed — Leo Marquard",
-                            confirmation_email_html(data["name"], data["slot"], facility_name, data["room"],
-                                                    data["date"], booking_id))
-
-    if not email_sent:
-        print(f"[WARNING] Booking #{booking_id} created but email failed to {email}")
+    send_email(email, "✅ Laundry Booking Confirmed — Leo Marquard",
+               confirmation_email_html(data["name"], data["slot"], facility_name, data["room"], data["date"],
+                                       booking_id))
 
     socketio.emit('new_booking', {
         'booking': make_json_serializable(dict(new_booking)),
@@ -505,7 +525,7 @@ def test_email():
         return "No email provided. Use ?email=your@email.com"
 
     result = send_email(email, "Test Email from Leo Marquard Laundry",
-                        "<h1>✅ Test Successful!</h1><p>If you see this, email is working perfectly!</p>")
+                        "<h1>✅ Test Successful!</h1><p>If you see this, email is working!</p>")
 
     if result:
         return f"✅ Test email sent to {email}. Check your inbox (and spam folder)."
