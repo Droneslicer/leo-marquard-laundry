@@ -8,7 +8,7 @@ let isBooking          = false;
 let machineWorking     = true;
 let machineNote        = "";
 
-// 🟢 WebSocket state
+// WebSocket state
 let socket = null;
 let wsConnected = false;
 
@@ -44,8 +44,8 @@ const FACILITY_CONFIG = {
 const today   = new Date().toISOString().slice(0, 10);
 dateInput.value = today;
 dateInput.min   = today;
-dateInput.max   = today;   // today only
-dateInput.disabled = true; // no need to change date
+dateInput.max   = today;
+dateInput.disabled = true;
 currentDate     = today;
 
 // ===================== WEBSOCKET INITIALIZATION =====================
@@ -75,7 +75,6 @@ function initWebSocket() {
         wsConnected = true;
         showToast('Reconnected to live updates', 'success');
         updateWSStatus(true);
-        // Refresh current view on reconnect
         if (currentFacility && currentRoom) renderSlots();
     });
 
@@ -85,48 +84,25 @@ function initWebSocket() {
         updateWSStatus(false);
     });
 
-    // 🟢 Listen for slot availability changes
     socket.on('slots_updated', (data) => {
-        console.log('Slots updated:', data);
         if (data.facility === currentFacility &&
             data.room === currentRoom &&
             data.date === currentDate) {
-            // Refresh slots if it affects current view
-            renderSlots();
-            showToast('Slot availability updated', 'info');
-        }
-    });
-
-    // 🟢 Listen for booking conflicts
-    socket.on('booking_conflict', (data) => {
-        if (data.slot === selectedSlotLabel &&
-            data.facility === currentFacility &&
-            data.room === currentRoom) {
-            showToast('⚠️ This slot was just booked by someone else', 'error');
-            selectedSlotLabel = null;
-            updatePreview();
-            updateBookButton();
             renderSlots();
         }
     });
 
-    // 🟢 Listen for machine status changes
     socket.on('machine_updated', (data) => {
         if (data.machine && data.machine.facility === currentFacility &&
             data.machine.room === currentRoom) {
             machineWorking = data.machine.working;
             machineNote = data.machine.note || "";
             renderSlots();
-            if (!data.machine.working) {
-                showToast(`⚠️ Machine is now out of service: ${machineNote}`, 'warning');
-            } else {
-                showToast(`✅ Machine is now available`, 'success');
-            }
+            showToast(data.machine.working ? '✅ Machine is now available' : '⚠️ Machine is out of service', 'info');
         }
     });
 }
 
-// Update connection status in UI
 function updateWSStatus(connected) {
     const statusEl = document.getElementById('wsStatus');
     if (statusEl) {
@@ -142,7 +118,6 @@ function updateWSStatus(connected) {
     }
 }
 
-// Add WebSocket status indicator to page
 function addWSStatusIndicator() {
     const indicator = document.createElement('div');
     indicator.id = 'wsStatus';
@@ -158,102 +133,100 @@ function addWSStatusIndicator() {
         backdrop-filter: blur(8px);
         z-index: 9999;
         pointer-events: none;
-        transition: all 0.3s ease;
     `;
     indicator.innerHTML = '🔌 Connecting...';
     document.body.appendChild(indicator);
 }
 
-// Show booking window status
 function getBookingWindowStatus(facility) {
-  const openHour = 6; // both facilities open at 06:00
-  const now      = new Date();
-  if (now.getHours() < openHour) {
-    return { open: false, msg: `Bookings open at 06:00` };
-  }
-  return { open: true, msg: "" };
+    const openHour = 6;
+    const now = new Date();
+    if (now.getHours() < openHour) {
+        return { open: false, msg: `Bookings open at 06:00 AM` };
+    }
+    return { open: true, msg: "" };
 }
 
 // ===================== TOAST =====================
 let toastTimer = null;
 function showToast(text, type = "success") {
-  const toast = document.getElementById("toast");
-  toast.textContent = text;
-  toast.className = `show ${type}`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.className = type; }, 3400);
+    const toast = document.getElementById("toast");
+    toast.textContent = text;
+    toast.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.className = type; }, 3400);
 }
 
 // ===================== BOOK BUTTON =====================
 function updateBookButton() {
-  const ready = currentFacility && currentRoom && selectedSlotLabel && machineWorking;
-  bookButton.disabled = !ready || isBooking;
+    const ready = currentFacility && currentRoom && selectedSlotLabel && machineWorking;
+    bookButton.disabled = !ready || isBooking;
 }
 
 // ===================== PREVIEW =====================
 function updatePreview() {
-  if (!currentFacility && !currentRoom && !selectedSlotLabel) {
-    selectionPreview.className = "selected-preview";
-    selectionPreview.innerHTML = `<div style="text-align:center;color:var(--text-muted)">— no selection yet —</div>`;
-    return;
-  }
-  selectionPreview.className = "selected-preview has-data";
-  const rows = [];
-  if (currentFacility) rows.push(`<div class="preview-row"><span>FACILITY</span><span class="preview-val">${FACILITY_CONFIG[currentFacility].display}</span></div>`);
-  if (currentRoom)     rows.push(`<div class="preview-row"><span>ROOM</span><span class="preview-val">${currentRoom}</span></div>`);
-  if (currentDate)     rows.push(`<div class="preview-row"><span>DATE</span><span class="preview-val">${currentDate}</span></div>`);
-  if (selectedSlotLabel) rows.push(`<div class="preview-row"><span>SLOT</span><span class="preview-val">${selectedSlotLabel}</span></div>`);
-  selectionPreview.innerHTML = rows.join('');
+    if (!currentFacility && !currentRoom && !selectedSlotLabel) {
+        selectionPreview.className = "selected-preview";
+        selectionPreview.innerHTML = `<div style="text-align:center;color:var(--text-muted)">— no selection yet —</div>`;
+        return;
+    }
+    selectionPreview.className = "selected-preview has-data";
+    const rows = [];
+    if (currentFacility) rows.push(`<div class="preview-row"><span>FACILITY</span><span class="preview-val">${FACILITY_CONFIG[currentFacility].display}</span></div>`);
+    if (currentRoom)     rows.push(`<div class="preview-row"><span>ROOM</span><span class="preview-val">${currentRoom}</span></div>`);
+    if (currentDate)     rows.push(`<div class="preview-row"><span>DATE</span><span class="preview-val">${currentDate}</span></div>`);
+    if (selectedSlotLabel) rows.push(`<div class="preview-row"><span>SLOT</span><span class="preview-val">${selectedSlotLabel}</span></div>`);
+    selectionPreview.innerHTML = rows.join('');
 }
 
 // ===================== OVERLAY / DROPDOWNS =====================
 function closeDropdowns() {
-  const menu = document.querySelector('.dropdown-menu');
-  if (menu) menu.remove();
-  globalOverlay.classList.remove('active');
-  facilityTrigger.classList.remove('open');
-  roomTrigger.classList.remove('open');
+    const menu = document.querySelector('.dropdown-menu');
+    if (menu) menu.remove();
+    globalOverlay.classList.remove('active');
+    facilityTrigger.classList.remove('open');
+    roomTrigger.classList.remove('open');
 }
 
 globalOverlay.addEventListener("click", () => {
-  closeDropdowns();
-  closeMyBookingsModal();
-  globalOverlay.classList.remove("active");
+    closeDropdowns();
+    closeMyBookingsModal();
+    globalOverlay.classList.remove("active");
 });
 
 function openDropdown(type) {
-  closeDropdowns();
-  const trigger = type === "facility" ? facilityTrigger : roomTrigger;
-  if (type === "room" && !currentFacility) return;
-  trigger.classList.add('open');
+    closeDropdowns();
+    const trigger = type === "facility" ? facilityTrigger : roomTrigger;
+    if (type === "room" && !currentFacility) return;
+    trigger.classList.add('open');
 
-  const menu = document.createElement("div");
-  menu.className = "dropdown-menu";
-  menu.style.top       = "50%";
-  menu.style.left      = "50%";
-  menu.style.transform = "translate(-50%, -50%)";
-  menu.style.width     = "min(340px, 90vw)";
+    const menu = document.createElement("div");
+    menu.className = "dropdown-menu";
+    menu.style.top       = "50%";
+    menu.style.left      = "50%";
+    menu.style.transform = "translate(-50%, -50%)";
+    menu.style.width     = "min(340px, 90vw)";
 
-  if (type === "facility") {
-    Object.keys(FACILITY_CONFIG).forEach(key => {
-      const opt = document.createElement("div");
-      opt.className   = "dropdown-option";
-      opt.textContent = FACILITY_CONFIG[key].display;
-      opt.onclick = () => { selectFacility(key); closeDropdowns(); };
-      menu.appendChild(opt);
-    });
-  } else {
-    FACILITY_CONFIG[currentFacility].rooms.forEach(room => {
-      const opt = document.createElement("div");
-      opt.className   = "dropdown-option";
-      opt.textContent = room;
-      opt.onclick = () => { selectRoom(room); closeDropdowns(); };
-      menu.appendChild(opt);
-    });
-  }
+    if (type === "facility") {
+        Object.keys(FACILITY_CONFIG).forEach(key => {
+            const opt = document.createElement("div");
+            opt.className   = "dropdown-option";
+            opt.textContent = FACILITY_CONFIG[key].display;
+            opt.onclick = () => { selectFacility(key); closeDropdowns(); };
+            menu.appendChild(opt);
+        });
+    } else {
+        FACILITY_CONFIG[currentFacility].rooms.forEach(room => {
+            const opt = document.createElement("div");
+            opt.className   = "dropdown-option";
+            opt.textContent = room;
+            opt.onclick = () => { selectRoom(room); closeDropdowns(); };
+            menu.appendChild(opt);
+        });
+    }
 
-  document.body.appendChild(menu);
-  globalOverlay.classList.add("active");
+    document.body.appendChild(menu);
+    globalOverlay.classList.add("active");
 }
 
 facilityTrigger.onclick = (e) => { e.stopPropagation(); openDropdown("facility"); };
@@ -261,328 +234,331 @@ roomTrigger.onclick     = (e) => { e.stopPropagation(); if (!roomTrigger.hasAttr
 
 // ===================== SELECT =====================
 function selectFacility(key) {
-  currentFacility   = key;
-  currentRoom       = null;
-  selectedSlotLabel = null;
-  machineWorking    = true;
-  machineNote       = "";
-  facilitySelectedSpan.textContent = FACILITY_CONFIG[key].display;
-  roomSelectedSpan.textContent     = "Select room";
-  roomTrigger.removeAttribute('data-locked');
-  updatePreview();
-  updateBookButton();
-  renderSlots();
+    currentFacility   = key;
+    currentRoom       = null;
+    selectedSlotLabel = null;
+    machineWorking    = true;
+    machineNote       = "";
+    facilitySelectedSpan.textContent = FACILITY_CONFIG[key].display;
+    roomSelectedSpan.textContent     = "Select room";
+    roomTrigger.removeAttribute('data-locked');
+    updatePreview();
+    updateBookButton();
+    renderSlots();
 }
 
 function selectRoom(roomName) {
-  currentRoom       = roomName;
-  selectedSlotLabel = null;
-  roomSelectedSpan.textContent = roomName;
-  updatePreview();
-  updateBookButton();
-  renderSlots();
+    currentRoom       = roomName;
+    selectedSlotLabel = null;
+    roomSelectedSpan.textContent = roomName;
+    updatePreview();
+    updateBookButton();
+    renderSlots();
 }
 
 function selectSlot(slot) {
-  selectedSlotLabel = slot;
-  document.querySelectorAll('.slot-node').forEach(node => {
-    node.classList.toggle("selected-slot", node.dataset.slot === slot);
-  });
-  updatePreview();
-  updateBookButton();
+    selectedSlotLabel = slot;
+    document.querySelectorAll('.slot-node').forEach(node => {
+        node.classList.toggle("selected-slot", node.dataset.slot === slot);
+    });
+    updatePreview();
+    updateBookButton();
 }
 
-// ===================== DATE =====================
 dateInput.addEventListener("change", (e) => {
-  currentDate       = e.target.value;
-  selectedSlotLabel = null;
-  updatePreview();
-  updateBookButton();
-  renderSlots();
+    currentDate       = e.target.value;
+    selectedSlotLabel = null;
+    updatePreview();
+    updateBookButton();
+    renderSlots();
 });
 
 // ===================== API =====================
 async function fetchAvailability() {
-  const res  = await fetch(`/api/availability?facility=${encodeURIComponent(currentFacility)}&room=${encodeURIComponent(currentRoom)}&date=${currentDate}`);
-  if (!res.ok) throw new Error("Network error");
-  return await res.json();
+    const res = await fetch(`/api/availability?facility=${encodeURIComponent(currentFacility)}&room=${encodeURIComponent(currentRoom)}&date=${currentDate}`);
+    if (!res.ok) throw new Error("Network error");
+    return await res.json();
 }
 
 // ===================== RENDER SLOTS =====================
 function renderSkeletons() {
-  slotsContainer.innerHTML = "";
-  const count = currentFacility ? FACILITY_CONFIG[currentFacility].getTimeSlots().length : 5;
-  for (let i = 0; i < count; i++) {
-    const sk = document.createElement("div");
-    sk.className = "slot-skeleton";
-    slotsContainer.appendChild(sk);
-  }
+    slotsContainer.innerHTML = "";
+    const count = currentFacility ? FACILITY_CONFIG[currentFacility].getTimeSlots().length : 5;
+    for (let i = 0; i < count; i++) {
+        const sk = document.createElement("div");
+        sk.className = "slot-skeleton";
+        slotsContainer.appendChild(sk);
+    }
 }
 
 async function renderSlots() {
-  if (!currentFacility || !currentRoom) {
-    slotsContainer.innerHTML = `<div class="empty-state">Select facility &amp; room to view slots</div>`;
-    removeMachineBanner();
-    return;
-  }
-
-  // Check if booking window is open
-  const window = getBookingWindowStatus(currentFacility);
-  if (!window.open) {
-    slotsContainer.innerHTML = `<div class="empty-state">🔒 ${window.msg}</div>`;
-    removeMachineBanner();
-    return;
-  }
-
-  if (isLoadingSlots) return;
-  isLoadingSlots = true;
-  renderSkeletons();
-
-  try {
-    const data      = await fetchAvailability();
-    const takenSlots = data.taken || [];
-    machineWorking  = data.machine_working !== false;
-    machineNote     = data.machine_note || "";
-
-    // machine down banner
-    if (!machineWorking) {
-      showMachineBanner(machineNote);
-    } else {
-      removeMachineBanner();
+    if (!currentFacility || !currentRoom) {
+        slotsContainer.innerHTML = `<div class="empty-state">Select facility &amp; room to view slots</div>`;
+        removeMachineBanner();
+        return;
     }
 
-    const slots = FACILITY_CONFIG[currentFacility].getTimeSlots();
+    const window = getBookingWindowStatus(currentFacility);
+    if (!window.open) {
+        slotsContainer.innerHTML = `<div class="empty-state">🔒 ${window.msg}</div>`;
+        removeMachineBanner();
+        return;
+    }
 
-    // If our selected slot got taken by someone else, clear it
-    if (selectedSlotLabel && takenSlots.includes(selectedSlotLabel)) {
-      selectedSlotLabel = null;
-      updatePreview();
-      updateBookButton();
-      showToast("Your selected slot was just taken — please choose another", "error");
+    if (isLoadingSlots) return;
+    isLoadingSlots = true;
+    renderSkeletons();
 
-      // Emit slot conflict to server for logging
-      if (socket && wsConnected) {
-        socket.emit('slot_conflict', {
-          facility: currentFacility,
-          room: currentRoom,
-          slot: selectedSlotLabel,
-          date: currentDate
+    try {
+        const data = await fetchAvailability();
+        const takenSlots = data.taken || [];
+        machineWorking = data.machine_working !== false;
+        machineNote = data.machine_note || "";
+
+        if (!machineWorking) {
+            showMachineBanner(machineNote);
+        } else {
+            removeMachineBanner();
+        }
+
+        const slots = FACILITY_CONFIG[currentFacility].getTimeSlots();
+
+        if (selectedSlotLabel && takenSlots.includes(selectedSlotLabel)) {
+            selectedSlotLabel = null;
+            updatePreview();
+            updateBookButton();
+            showToast("Your selected slot was just taken — please choose another", "error");
+        }
+
+        slotsContainer.innerHTML = "";
+
+        slots.forEach((slot, i) => {
+            const isTaken = takenSlots.includes(slot) || !machineWorking;
+            const isSelected = !isTaken && selectedSlotLabel === slot;
+            const div = document.createElement("div");
+
+            div.className = `slot-node ${isTaken ? "unavailable" : "available"}${isSelected ? " selected-slot" : ""}`;
+            div.dataset.slot = slot;
+            div.style.animationDelay = `${i * 40}ms`;
+            div.textContent = slot;
+
+            if (!isTaken) div.onclick = () => selectSlot(slot);
+            slotsContainer.appendChild(div);
         });
-      }
+
+        updateBookButton();
+    } catch (err) {
+        slotsContainer.innerHTML = `<div class="empty-state" style="color:#ff6b6b">⚠ Failed to load slots</div>`;
+    } finally {
+        isLoadingSlots = false;
     }
-
-    slotsContainer.innerHTML = "";
-
-    slots.forEach((slot, i) => {
-      const isTaken    = takenSlots.includes(slot) || !machineWorking;
-      const isSelected = !isTaken && selectedSlotLabel === slot;
-      const div        = document.createElement("div");
-
-      div.className      = `slot-node ${isTaken ? "unavailable" : "available"}${isSelected ? " selected-slot" : ""}`;
-      div.dataset.slot   = slot;
-      div.style.animationDelay = `${i * 40}ms`;
-      div.textContent    = slot;
-
-      if (!isTaken) div.onclick = () => selectSlot(slot);
-      slotsContainer.appendChild(div);
-    });
-
-    updateBookButton();
-  } catch (err) {
-    slotsContainer.innerHTML = `<div class="empty-state" style="color:#ff6b6b">⚠ Failed to load slots</div>`;
-  } finally {
-    isLoadingSlots = false;
-  }
 }
 
 function showMachineBanner(note) {
-  removeMachineBanner();
-  const banner = document.createElement("div");
-  banner.id        = "machineBanner";
-  banner.className = "machine-banner";
-  banner.innerHTML = `⚠ Machine out of service${note ? `: ${note}` : ""}`;
-  slotsContainer.parentElement.insertBefore(banner, slotsContainer);
+    removeMachineBanner();
+    const banner = document.createElement("div");
+    banner.id = "machineBanner";
+    banner.className = "machine-banner";
+    banner.innerHTML = `⚠ Machine out of service${note ? `: ${note}` : ""}`;
+    slotsContainer.parentElement.insertBefore(banner, slotsContainer);
 }
 
 function removeMachineBanner() {
-  const b = document.getElementById("machineBanner");
-  if (b) b.remove();
+    const b = document.getElementById("machineBanner");
+    if (b) b.remove();
 }
 
 // ===================== VALIDATION =====================
 function validateInputs() {
-  let ok = true;
-  const name  = fullNameInput.value.trim();
-  const email = emailInput.value.trim();
-  const room  = roomNumberInput.value.trim();
+    let ok = true;
+    const name = fullNameInput.value.trim();
+    const email = emailInput.value.trim();
+    const room = roomNumberInput.value.trim();
 
-  if (!name)  { fullNameInput.classList.add("invalid");   ok = false; }
-  else          fullNameInput.classList.remove("invalid");
+    if (!name) { fullNameInput.classList.add("invalid"); ok = false; }
+    else fullNameInput.classList.remove("invalid");
 
-  if (!email.endsWith("@myuct.ac.za")) { emailInput.classList.add("invalid");  ok = false; }
-  else                                    emailInput.classList.remove("invalid");
+    if (!email.endsWith("@myuct.ac.za")) { emailInput.classList.add("invalid"); ok = false; }
+    else emailInput.classList.remove("invalid");
 
-  if (!room)  { roomNumberInput.classList.add("invalid"); ok = false; }
-  else          roomNumberInput.classList.remove("invalid");
+    if (!room) { roomNumberInput.classList.add("invalid"); ok = false; }
+    else roomNumberInput.classList.remove("invalid");
 
-  return ok;
+    return ok;
 }
 
 emailInput.addEventListener("input", () => {
-  if (emailInput.value.endsWith("@myuct.ac.za")) emailInput.classList.remove("invalid");
+    if (emailInput.value.endsWith("@myuct.ac.za")) emailInput.classList.remove("invalid");
 });
 
 // ===================== BOOKING FLOW =====================
 function buildPayload() {
-  return {
-    name:       fullNameInput.value.trim(),
-    email:      emailInput.value.trim().toLowerCase(),
-    roomNumber: roomNumberInput.value.trim(),
-    facility:   currentFacility,
-    room:       currentRoom,
-    date:       currentDate,
-    slot:       selectedSlotLabel
-  };
+    return {
+        name: fullNameInput.value.trim(),
+        email: emailInput.value.trim().toLowerCase(),
+        roomNumber: roomNumberInput.value.trim(),
+        facility: currentFacility,
+        room: currentRoom,
+        date: currentDate,
+        slot: selectedSlotLabel
+    };
 }
 
 async function handleBooking() {
-  if (isBooking) return;
-  if (!validateInputs()) { showToast("Fix the highlighted fields", "error"); return; }
-  if (!currentFacility || !currentRoom || !selectedSlotLabel) { showToast("Complete your slot selection", "error"); return; }
+    if (isBooking) return;
+    if (!validateInputs()) { showToast("Fix the highlighted fields", "error"); return; }
+    if (!currentFacility || !currentRoom || !selectedSlotLabel) { showToast("Complete your slot selection", "error"); return; }
 
-  isBooking = true;
-  bookButton.disabled    = true;
-  bookButton.classList.add("loading");
-  bookButton.textContent = "Booking…";
+    isBooking = true;
+    bookButton.disabled = true;
+    bookButton.classList.add("loading");
+    bookButton.textContent = "Booking…";
 
-  try {
-    const payload = buildPayload();
-    const res     = await fetch("/api/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
+    try {
+        const payload = buildPayload();
+        const res = await fetch("/api/book", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
 
-    if (!res.ok) {
-      showToast(data.error || "Booking failed", "error");
-      // If conflict, refresh slots immediately
-      if (res.status === 409) {
-        renderSlots();
-      }
-      return;
+        if (!res.ok) {
+            showToast(data.error || "Booking failed", "error");
+            if (res.status === 409) {
+                await renderSlots();
+            }
+            return;
+        }
+
+        showToast(`✓ Booking confirmed! Your Booking ID: #${data.booking_id}`, "success");
+
+        selectedSlotLabel = null;
+        updatePreview();
+        updateBookButton();
+        await renderSlots();
+
+    } catch (err) {
+        showToast("Server error — try again", "error");
+    } finally {
+        isBooking = false;
+        bookButton.classList.remove("loading");
+        bookButton.textContent = "CONFIRM BOOKING";
+        updateBookButton();
     }
-
-    showToast("✓ Booking confirmed! Check your email.", "success");
-
-    // Emit booking success for real-time updates
-    if (socket && wsConnected) {
-      socket.emit('booking_made', {
-        booking_id: data.booking_id,
-        facility: currentFacility,
-        room: currentRoom,
-        slot: selectedSlotLabel,
-        date: currentDate,
-        name: fullNameInput.value.trim()
-      });
-    }
-
-    selectedSlotLabel = null;  // clear before render so no green flash
-    updatePreview();
-    updateBookButton();
-    await renderSlots();
-
-  } catch (err) {
-    showToast("Server error — try again", "error");
-  } finally {
-    isBooking = false;
-    bookButton.classList.remove("loading");
-    bookButton.textContent = "CONFIRM BOOKING";
-    updateBookButton();
-  }
 }
 
 bookButton.addEventListener("click", handleBooking);
 
-// ===================== AUTO-REFRESH SLOTS =====================
-// Refresh every 30 seconds so all devices stay in sync
+// Auto-refresh every 30 seconds
 setInterval(() => {
-  if (currentFacility && currentRoom) renderSlots();
+    if (currentFacility && currentRoom) renderSlots();
 }, 30000);
 
-// ===================== MY BOOKINGS MODAL =====================
+// ===================== ENHANCED MY BOOKINGS MODAL =====================
 function openMyBookingsModal() {
-  const email = emailInput.value.trim();
-  if (!email.endsWith("@myuct.ac.za")) {
-    showToast("Enter your UCT email first", "error");
-    return;
-  }
+    const email = emailInput.value.trim();
+    if (!email.endsWith("@myuct.ac.za")) {
+        showToast("Enter your UCT email first", "error");
+        return;
+    }
 
-  const existing = document.getElementById("myBookingsModal");
-  if (existing) existing.remove();
+    const existing = document.getElementById("myBookingsModal");
+    if (existing) existing.remove();
 
-  const modal = document.createElement("div");
-  modal.id        = "myBookingsModal";
-  modal.className = "otp-modal";
-  modal.innerHTML = `
-    <div class="otp-modal-inner" style="max-width:480px;width:90vw">
-      <div class="otp-title">📋 My Bookings</div>
-      <div id="myBookingsList" style="margin-top:1rem;max-height:55vh;overflow-y:auto">
-        <div style="text-align:center;color:var(--text-muted);font-size:0.8rem">Loading…</div>
-      </div>
-      <button class="btn-book" style="margin-top:1rem;background:rgba(255,255,255,0.08);color:var(--text-primary)" onclick="closeMyBookingsModal()">CLOSE</button>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-  globalOverlay.classList.add("active");
-  loadMyBookings(email);
+    const modal = document.createElement("div");
+    modal.id = "myBookingsModal";
+    modal.innerHTML = `
+        <div class="booking-modal">
+            <div class="modal-header">
+                <h3>📋 My Laundry Bookings</h3>
+                <button class="modal-close" onclick="closeMyBookingsModal()">✕</button>
+            </div>
+            <div id="myBookingsList" class="bookings-list-modal">
+                <div class="loading-spinner">Loading your bookings...</div>
+            </div>
+            <div class="modal-footer">
+                <small>💡 Save your Booking ID to check status</small>
+                <button class="btn-refresh" onclick="refreshMyBookings()">🔄 Refresh</button>
+                <button class="btn-close-modal" onclick="closeMyBookingsModal()">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    globalOverlay.classList.add("active");
+    loadMyBookingsEnhanced(email);
 }
 
 function closeMyBookingsModal() {
-  const m = document.getElementById("myBookingsModal");
-  if (m) m.remove();
-  globalOverlay.classList.remove("active");
+    const modal = document.getElementById("myBookingsModal");
+    if (modal) modal.remove();
+    globalOverlay.classList.remove("active");
 }
 
-async function loadMyBookings(email) {
-  const list = document.getElementById("myBookingsList");
-  try {
-    const res  = await fetch(`/api/my-bookings?email=${encodeURIComponent(email)}`);
-    const data = await res.json();
-
-    if (!data.length) {
-      list.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:0.8rem;padding:1rem">No bookings found</div>`;
-      return;
+async function refreshMyBookings() {
+    const email = emailInput.value.trim();
+    if (email.endsWith("@myuct.ac.za")) {
+        await loadMyBookingsEnhanced(email);
     }
-
-    list.innerHTML = data.map(b => {
-      const statusColor = b.status === 'confirmed' ? 'var(--accent)' : 'var(--text-muted)';
-
-      return `
-        <div style="background:rgba(0,0,0,0.3);border-radius:1rem;padding:0.9rem 1rem;margin-bottom:0.6rem;border:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
-            <span style="font-weight:600;font-size:0.85rem">${b.date} · ${b.slot}</span>
-            <span style="font-size:0.65rem;color:${statusColor};text-transform:uppercase;font-family:'DM Mono',monospace">${b.status}</span>
-          </div>
-          <div style="font-size:0.72rem;color:var(--text-muted);font-family:'DM Mono',monospace">${b.facility === 'in-house' ? '🏠' : '🏚️'} ${b.room}</div>
-          ${b.checked_in ? '<div style="font-size:0.65rem;color:var(--accent);margin-top:0.3rem">✓ Card collected</div>' : ''}
-          ${b.checked_out ? '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.3rem">✓ Card returned</div>' : ''}
-          ${b.late_return ? `<div style="font-size:0.65rem;color:#ff5e6c;margin-top:0.3rem">⚠ Late return: ${b.late_minutes} min</div>` : ''}
-        </div>
-      `;
-    }).join('');
-  } catch (err) {
-    list.innerHTML = `<div style="text-align:center;color:#ff5e6c;font-size:0.8rem;padding:1rem">Failed to load bookings</div>`;
-  }
 }
+
+async function loadMyBookingsEnhanced(email) {
+    const container = document.getElementById("myBookingsList");
+    if (!container) return;
+
+    try {
+        const res = await fetch(`/api/my-bookings?email=${encodeURIComponent(email)}`);
+        const bookings = await res.json();
+
+        if (!bookings.length) {
+            container.innerHTML = `<div class="empty-bookings">📭 No bookings found. Make your first booking!</div>`;
+            return;
+        }
+
+        container.innerHTML = bookings.map(b => {
+            let statusColor = "#ffa500";
+            let statusIcon = "⏳";
+            let statusText = "";
+
+            if (b.checked_in && !b.checked_out) {
+                statusColor = "#00e5b0";
+                statusIcon = "🧺";
+                statusText = "Card Collected - Laundry in Progress";
+            } else if (b.checked_out) {
+                statusColor = "#7a8aaa";
+                statusIcon = "✅";
+                statusText = b.late_return ? `Completed (LATE +${b.late_minutes} min)` : "Completed - Card Returned";
+            } else if (b.status === "abandoned") {
+                statusColor = "#ff5e6c";
+                statusIcon = "❌";
+                statusText = "Abandoned - No Show";
+            } else {
+                statusText = "Waiting for Check-in";
+            }
+
+            return `
+                <div class="booking-card-modal" style="border-left-color: ${statusColor}">
+                    <div class="booking-time">⏰ ${b.slot}</div>
+                    <div class="booking-date">📅 ${b.date}</div>
+                    <div class="booking-room">🏠 ${b.facility === 'in-house' ? 'In-House' : 'Basement'} · ${b.room}</div>
+                    <div class="booking-status" style="color: ${statusColor}">
+                        ${statusIcon} ${statusText}
+                    </div>
+                    <div class="booking-id">🆔 Booking ID: #${b.id}</div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="error-message">❌ Failed to load bookings. Try again.</div>`;
+    }
+}
+
+// Make functions global for HTML onclick
+window.openMyBookingsModal = openMyBookingsModal;
+window.closeMyBookingsModal = closeMyBookingsModal;
+window.refreshMyBookings = refreshMyBookings;
 
 // ===================== INITIALIZATION =====================
-// Add WebSocket status indicator
 addWSStatusIndicator();
-
-// Initialize WebSocket
 initWebSocket();
-
-// Initial render
 renderSlots();

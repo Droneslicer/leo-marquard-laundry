@@ -44,7 +44,6 @@
       font-family: 'Syne', system-ui, sans-serif;
     }
 
-    /* ─── TOAST ─────────────────────────────── */
     #toast {
       position: fixed;
       bottom: 2rem;
@@ -55,7 +54,6 @@
       font-family: 'DM Mono', monospace;
       font-size: 0.82rem;
       font-weight: 500;
-      letter-spacing: 0.3px;
       backdrop-filter: blur(16px);
       z-index: 9999;
       opacity: 0;
@@ -71,28 +69,18 @@
       background: rgba(0, 229, 176, 0.18);
       border: 1px solid var(--accent);
       color: var(--accent);
-      box-shadow: 0 0 20px rgba(0, 229, 176, 0.2);
     }
     #toast.error {
       background: rgba(255, 94, 108, 0.15);
       border: 1px solid var(--red);
       color: var(--red);
-      box-shadow: 0 0 20px rgba(255, 94, 108, 0.2);
     }
     #toast.info {
       background: rgba(100, 150, 255, 0.15);
       border: 1px solid #6496ff;
       color: #6496ff;
-      box-shadow: 0 0 20px rgba(100, 150, 255, 0.2);
-    }
-    #toast.warning {
-      background: rgba(255, 180, 50, 0.15);
-      border: 1px solid #ffb432;
-      color: #ffb432;
-      box-shadow: 0 0 20px rgba(255, 180, 50, 0.2);
     }
 
-    /* ─── MAIN CARD ──────────────────────────── */
     .app-container {
       max-width: 1400px;
       width: 100%;
@@ -100,11 +88,10 @@
       backdrop-filter: blur(24px);
       border-radius: 3rem;
       border: 1px solid var(--border);
-      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255,255,255,0.04);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
       padding: 2rem 2rem 2.5rem;
     }
 
-    /* ─── HEADER ─────────────────────────────── */
     .system-header {
       display: flex;
       justify-content: space-between;
@@ -139,9 +126,7 @@
       border: 1px solid var(--border-accent);
       font-family: 'DM Mono', monospace;
       font-size: 0.72rem;
-      font-weight: 500;
       color: var(--accent);
-      letter-spacing: 0.5px;
     }
     .status-dot {
       display: inline-block;
@@ -150,29 +135,21 @@
       border-radius: 50%;
       margin-right: 6px;
       animation: pulse-dot 2s infinite;
-      vertical-align: middle;
     }
     @keyframes pulse-dot {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.5; transform: scale(0.7); }
     }
 
-    /* ─── LAYOUT ─────────────────────────────── */
-    .booking-panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1.8rem;
-    }
+    .booking-panel { display: flex; flex-wrap: wrap; gap: 1.8rem; }
     .form-section { flex: 1.2; min-width: 280px; }
     .slots-section { flex: 2.2; min-width: 320px; }
 
-    /* ─── GLASS CARD ─────────────────────────── */
     .glass-card {
       background: var(--surface);
       backdrop-filter: blur(16px);
       border-radius: var(--radius-card);
       border: 1px solid var(--border);
-      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.5);
       padding: 1.6rem;
     }
     .card-label {
@@ -193,10 +170,7 @@
       background: var(--border);
     }
 
-    /* ─── INPUTS ─────────────────────────────── */
-    .input-field {
-      margin-bottom: 1.2rem;
-    }
+    .input-field { margin-bottom: 1.2rem; }
     .input-field label {
       display: block;
       font-family: 'DM Mono', monospace;
@@ -226,9 +200,7 @@
       border-color: var(--red);
       box-shadow: 0 0 0 3px rgba(255, 94, 108, 0.2);
     }
-    .input-field input::placeholder { color: rgba(255,255,255,0.2); }
 
-    /* ─── DROPDOWNS ──────────────────────────── */
     .dropdown-field { margin-bottom: 1.2rem; }
     .dropdown-label {
       display: block;
@@ -248,12 +220,11 @@
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
+      transition: border-color 0.2s;
       color: var(--text-primary);
       font-family: 'Syne', sans-serif;
       font-weight: 500;
       font-size: 0.9rem;
-      user-select: none;
     }
     .dropdown-trigger:hover:not([data-locked]) {
       background: var(--surface-hover);
@@ -263,14 +234,9 @@
       opacity: 0.45;
       cursor: not-allowed;
     }
-    .dropdown-arrow {
-      color: var(--accent);
-      font-size: 1rem;
-      transition: transform 0.2s;
-    }
+    .dropdown-arrow { color: var(--accent); font-size: 1rem; transition: transform 0.2s; }
     .dropdown-trigger.open .dropdown-arrow { transform: rotate(180deg); }
 
-    /* overlay */
     .global-overlay {
       position: fixed; inset: 0;
       background: rgba(0, 0, 0, 0.6);
@@ -281,7 +247,6 @@
     }
     .global-overlay.active { opacity: 1; visibility: visible; }
 
-    /* menu — centered modal on screen */
     .dropdown-menu {
       position: fixed;
       top: 50% !important;
@@ -298,7 +263,7 @@
     }
     @keyframes menuIn {
       from { opacity: 0; transform: translate(-50%, -46%) scale(0.95); }
-      to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     }
     .dropdown-option {
       padding: 0.85rem 1.4rem;
@@ -317,7 +282,6 @@
       color: var(--accent);
     }
 
-    /* ─── SELECTION PREVIEW ──────────────────── */
     .selected-preview {
       background: rgba(0, 229, 176, 0.05);
       border: 1px solid rgba(0, 229, 176, 0.12);
@@ -330,20 +294,10 @@
       line-height: 1.7;
       transition: all 0.3s ease;
     }
-    .selected-preview.has-data {
-      border-color: rgba(0, 229, 176, 0.3);
-      color: var(--text-label);
-    }
-    .selected-preview .preview-row {
-      display: flex;
-      justify-content: space-between;
-    }
-    .selected-preview .preview-val {
-      color: var(--accent);
-      font-weight: 500;
-    }
+    .selected-preview.has-data { border-color: rgba(0, 229, 176, 0.3); }
+    .preview-row { display: flex; justify-content: space-between; }
+    .preview-val { color: var(--accent); font-weight: 500; }
 
-    /* ─── SLOT GRID ──────────────────────────── */
     .slot-header {
       display: flex;
       justify-content: space-between;
@@ -359,7 +313,7 @@
       color: var(--text-muted);
       text-transform: uppercase;
     }
-    .date-input-wrap input[type="date"] {
+    .date-input-wrap input {
       background: rgba(0,0,0,0.4);
       border: 1px solid var(--border);
       border-radius: 2rem;
@@ -368,11 +322,7 @@
       font-family: 'DM Mono', monospace;
       font-size: 0.78rem;
       outline: none;
-      transition: border-color 0.2s;
       cursor: pointer;
-    }
-    .date-input-wrap input[type="date"]:focus {
-      border-color: var(--accent);
     }
 
     .slots-grid {
@@ -382,16 +332,10 @@
       min-height: 100px;
     }
 
-    /* skeleton loader */
     .slot-skeleton {
       border-radius: var(--radius-slot);
       height: 65px;
-      background: linear-gradient(
-        90deg,
-        rgba(255,255,255,0.04) 25%,
-        rgba(255,255,255,0.08) 50%,
-        rgba(255,255,255,0.04) 75%
-      );
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.4s infinite;
     }
@@ -400,7 +344,6 @@
       100% { background-position: 200% 0; }
     }
 
-    /* slot nodes */
     .slot-node {
       border-radius: var(--radius-slot);
       padding: 0.85rem 0.4rem;
@@ -408,20 +351,17 @@
       font-family: 'DM Mono', monospace;
       font-weight: 500;
       font-size: 0.78rem;
-      border: 1px solid transparent;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
       cursor: pointer;
       animation: slotFadeIn 0.3s ease both;
-      line-height: 1.5;
     }
     @keyframes slotFadeIn {
       from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
+      to { opacity: 1; transform: translateY(0); }
     }
-
     .slot-node.available {
       background: var(--bg-slot-avail);
-      border-color: rgba(62, 255, 160, 0.35);
+      border: 1px solid rgba(62, 255, 160, 0.35);
       color: #c8ffe0;
     }
     .slot-node.available:hover {
@@ -432,7 +372,7 @@
     }
     .slot-node.unavailable {
       background: var(--bg-slot-taken);
-      border-color: rgba(255, 100, 100, 0.25);
+      border: 1px solid rgba(255, 100, 100, 0.25);
       color: #ff9090;
       cursor: not-allowed;
       opacity: 0.55;
@@ -446,7 +386,6 @@
       transform: translateY(-2px) scale(1.03);
     }
 
-    /* ─── BOOK BUTTON ────────────────────────── */
     .btn-book {
       background: linear-gradient(100deg, #00d4a8, #00916e);
       border: none;
@@ -460,34 +399,13 @@
       color: #010e0a;
       margin-top: 1.5rem;
       cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+      transition: transform 0.15s ease;
       box-shadow: 0 6px 20px rgba(0,200,150,0.3);
-      position: relative;
-      overflow: hidden;
     }
-    .btn-book::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,0.12);
-      opacity: 0;
-      transition: opacity 0.15s;
-    }
-    .btn-book:hover::after { opacity: 1; }
     .btn-book:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,200,150,0.4); }
-    .btn-book:active { transform: scale(0.98); }
-    .btn-book:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-    .btn-book.loading {
-      opacity: 0.7;
-      cursor: wait;
-    }
+    .btn-book:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-book.loading { opacity: 0.7; cursor: wait; }
 
-    /* ─── LEGEND ─────────────────────────────── */
     .legend {
       display: flex;
       gap: 1.2rem;
@@ -501,28 +419,12 @@
       font-family: 'DM Mono', monospace;
       font-size: 0.65rem;
       color: var(--text-muted);
-      letter-spacing: 0.5px;
     }
-    .legend-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
     .legend-dot.avail { background: #3effa0; }
     .legend-dot.taken { background: var(--red); }
-    .legend-dot.sel   { background: var(--accent); }
+    .legend-dot.sel { background: var(--accent); }
 
-    /* ─── EMPTY STATE ────────────────────────── */
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      padding: 2rem 0;
-      letter-spacing: 0.5px;
-    }
-
-    /* ─── MACHINE BANNER ─────────────────────── */
     .machine-banner {
       background: rgba(255, 94, 108, 0.12);
       border: 1px solid rgba(255, 94, 108, 0.4);
@@ -533,10 +435,8 @@
       color: var(--red);
       margin-bottom: 0.8rem;
       text-align: center;
-      letter-spacing: 0.3px;
     }
 
-    /* ─── MY BOOKINGS BUTTON ─────────────────── */
     .btn-my-bookings {
       background: transparent;
       border: 1px solid var(--border);
@@ -548,40 +448,96 @@
       font-size: 0.72rem;
       cursor: pointer;
       margin-top: 0.8rem;
-      transition: border-color 0.15s, color 0.15s;
-      letter-spacing: 0.5px;
+      transition: border-color 0.15s;
     }
     .btn-my-bookings:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* ─── MODAL STYLES ───────────────────────── */
-    .otp-modal {
+    /* Modal Styles */
+    .booking-modal {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 500px;
+      background: #0a0f1a;
+      border-radius: 20px;
+      border: 1px solid var(--accent);
+      z-index: 1001;
+      max-height: 80vh;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .otp-modal-inner {
-      background: rgba(10, 15, 26, 0.98);
-      backdrop-filter: blur(20px);
-      border-radius: 1.5rem;
-      border: 1px solid var(--border-accent);
-      padding: 1.5rem;
+      flex-direction: column;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     }
-    .otp-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 1.2rem;
-      font-weight: 600;
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 20px 20px 0 0;
+    }
+    .modal-header h3 { color: var(--accent); margin: 0; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: var(--red); }
+    .bookings-list-modal {
+      padding: 1rem;
+      overflow-y: auto;
+      flex: 1;
+      max-height: 60vh;
+    }
+    .booking-card-modal {
+      background: rgba(20, 25, 40, 0.8);
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.8rem;
+      border-left: 3px solid;
+    }
+    .booking-time { font-weight: bold; font-size: 0.9rem; color: var(--text-primary); }
+    .booking-date { font-size: 0.7rem; color: var(--text-muted); margin: 0.2rem 0; }
+    .booking-room { font-size: 0.75rem; color: var(--text-label); margin: 0.2rem 0; }
+    .booking-status { font-size: 0.7rem; font-weight: bold; margin: 0.3rem 0; }
+    .booking-id { font-size: 0.7rem; color: var(--accent); font-family: monospace; margin-top: 0.3rem; }
+    .modal-footer {
+      padding: 0.8rem 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0 0 20px 20px;
+    }
+    .modal-footer small { color: var(--text-muted); font-size: 0.65rem; flex: 1; }
+    .btn-refresh, .btn-close-modal {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.4rem 0.8rem;
+      color: var(--text-primary);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+    .btn-refresh:hover, .btn-close-modal:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent);
       color: var(--accent);
-      margin-bottom: 0.5rem;
+    }
+    .loading-spinner, .empty-bookings, .error-message {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 2rem;
     }
 
-    /* ─── RESPONSIVE ─────────────────────────── */
     @media (max-width: 780px) {
       body { padding: 1rem; }
       .app-container { padding: 1.2rem; border-radius: 2rem; }
@@ -672,9 +628,7 @@
   </div>
 </div>
 
-<!-- Socket.IO Client Library -->
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<!-- Main Application Script -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
