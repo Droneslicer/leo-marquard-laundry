@@ -10,10 +10,20 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+from functools import lru_cache
 
 load_dotenv()
 
-# Add this helper function to convert datetime objects
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+MAIL_USER = os.getenv("MAIL_USER")
+MAIL_PASS = os.getenv("MAIL_PASSWORD")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+# Helper function to make datetime JSON serializable
 def make_json_serializable(obj):
     """Convert datetime objects to ISO format strings"""
     if isinstance(obj, dict):
@@ -24,20 +34,6 @@ def make_json_serializable(obj):
         return obj.isoformat()
     else:
         return obj
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
-
-# Fix: Remove async_mode or use 'threading' for Windows
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-application = socketio
-
-# Rest of your code remains the same...
-
-MAIL_USER = os.getenv("MAIL_USER")
-MAIL_PASS = os.getenv("MAIL_PASSWORD")
-DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 # ─── DATABASE ──────────────────────────────────────────────────────
@@ -108,15 +104,30 @@ init_db()
 # ─── EMAIL ─────────────────────────────────────────────────────────
 def send_email(to_addr, subject, html_body):
     try:
+        if not MAIL_USER or not MAIL_PASS:
+            print(f"[EMAIL ERROR] Missing credentials")
+            return False
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = f"Leo Marquard Laundry <{MAIL_USER}>"
         msg["To"] = to_addr
         msg.attach(MIMEText(html_body, "html"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(MAIL_USER, MAIL_PASS)
-            server.sendmail(MAIL_USER, to_addr, msg.as_string())
-        return True
+
+        # Try multiple ports
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
+                server.login(MAIL_USER, MAIL_PASS)
+                server.sendmail(MAIL_USER, to_addr, msg.as_string())
+            print(f"[EMAIL SUCCESS] Sent to {to_addr}")
+            return True
+        except:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as server:
+                server.starttls()
+                server.login(MAIL_USER, MAIL_PASS)
+                server.sendmail(MAIL_USER, to_addr, msg.as_string())
+            print(f"[EMAIL SUCCESS] Sent to {to_addr}")
+            return True
     except Exception as e:
         print(f"[EMAIL ERROR] {e}")
         return False
@@ -134,8 +145,8 @@ def confirmation_email_html(name, slot, facility, room, date, booking_id):
         <tr><td style="color:#7a8aaa;padding:0.4rem 0">Time</td><td style="color:#00e5b0;font-weight:700">{slot}</td></tr>
         <tr><td style="color:#7a8aaa;padding:0.4rem 0">Facility</td><td style="color:#eef2ff">{facility}</td></tr>
         <tr><td style="color:#7a8aaa;padding:0.4rem 0">Room</td><td style="color:#eef2ff">{room}</td></tr>
-       </table>
-      <p style="color:#7a8aaa;font-size:0.8rem;margin-top:1.5rem">Head to reception to collect your access card at your slot time. Cancellations only allowed more than 24 hours before your slot.</p>
+      </table>
+      <p style="color:#7a8aaa;font-size:0.8rem;margin-top:1.5rem">Head to reception to collect your access card at your slot time.</p>
     </div>
     """
 
@@ -151,13 +162,13 @@ def reminder_email_html(name, slot, facility, room, date):
         <tr><td style="color:#7a8aaa;padding:0.4rem 0">Time</td><td style="color:#00e5b0;font-weight:700">{slot}</td></tr>
         <tr><td style="color:#7a8aaa;padding:0.4rem 0">Facility</td><td style="color:#eef2ff">{facility}</td></tr>
         <tr><td style="color:#7a8aaa;padding:0.4rem 0">Room</td><td style="color:#eef2ff">{room}</td></tr>
-       </table>
+      </table>
       <p style="color:#7a8aaa;font-size:0.8rem;margin-top:1.5rem">Head to reception to collect your access card.</p>
     </div>
     """
 
 
-# ─── BACKGROUND JOBS ───────────────────────────────────────────────
+# ─── BACKGROUND JOBS (reduced frequency for performance) ──────────
 def job_send_reminders():
     now = datetime.now()
     target = now + timedelta(minutes=10)
@@ -195,8 +206,8 @@ def job_scavenge_abandoned():
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(job_send_reminders, "interval", minutes=1)
-scheduler.add_job(job_scavenge_abandoned, "interval", minutes=1)
+scheduler.add_job(job_send_reminders, "interval", minutes=5)  # Reduced from 1 minute
+scheduler.add_job(job_scavenge_abandoned, "interval", minutes=5)  # Reduced from 1 minute
 scheduler.start()
 
 
@@ -258,17 +269,11 @@ def handle_leave_reception():
 
 @socketio.on('booking_made')
 def handle_booking_made(data):
-    """Student confirms booking - broadcast to reception"""
     print(f"Booking made event: {data}")
-    emit('new_booking_alert', {
-        'message': f"New booking for {data['slot']}",
-        'booking': data
-    }, room='reception_dashboard', broadcast=True)
 
 
 @socketio.on('slot_conflict')
 def handle_slot_conflict(data):
-    """Log conflicts for monitoring"""
     print(f"⚠️ Slot conflict detected: {data}")
 
 
@@ -283,7 +288,6 @@ def reception():
     return render_template("reception.html")
 
 
-# ── Direct booking (no OTP) ──
 @app.route("/api/book", methods=["POST"])
 def book_slot():
     data = request.json or {}
@@ -342,7 +346,7 @@ def book_slot():
                confirmation_email_html(data["name"], data["slot"], facility_name, data["room"], data["date"],
                                        booking_id))
 
-    # 🟢 EMIT REAL-TIME UPDATE TO RECEPTION
+    # Emit real-time update to reception
     socketio.emit('new_booking', {
         'booking': make_json_serializable(dict(new_booking)),
         'timestamp': datetime.now().isoformat()
@@ -351,7 +355,6 @@ def book_slot():
     return jsonify({"message": "Booking confirmed", "booking_id": booking_id})
 
 
-# ── Availability ──
 @app.route("/api/availability")
 def availability():
     facility = request.args.get("facility")
@@ -376,7 +379,6 @@ def availability():
     })
 
 
-# ── All bookings (reception) ──
 @app.route("/api/bookings")
 def get_bookings():
     conn = get_db()
@@ -394,7 +396,6 @@ def get_bookings():
     return jsonify([dict(r) for r in rows])
 
 
-# ── Check-in (card issued) ──
 @app.route("/api/checkin/<int:booking_id>", methods=["POST"])
 def checkin(booking_id):
     conn = get_db()
@@ -407,7 +408,6 @@ def checkin(booking_id):
     finally:
         conn.close()
 
-    # 🟢 EMIT CHECK-IN UPDATE
     socketio.emit('booking_updated', {
         'booking_id': booking_id,
         'action': 'checkin',
@@ -418,7 +418,6 @@ def checkin(booking_id):
     return jsonify({"message": "Checked in — card issued"})
 
 
-# ── Check-out (card returned) ──
 @app.route("/api/checkout/<int:booking_id>", methods=["POST"])
 def checkout(booking_id):
     now = datetime.now()
@@ -444,7 +443,6 @@ def checkout(booking_id):
     finally:
         conn.close()
 
-    # 🟢 EMIT CHECKOUT UPDATE
     socketio.emit('booking_updated', {
         'booking_id': booking_id,
         'action': 'checkout',
@@ -455,7 +453,6 @@ def checkout(booking_id):
     }, room='reception_dashboard')
 
     if is_late:
-        # 🟢 EMIT LATE RETURN ALERT
         socketio.emit('late_return_alert', {
             'booking_id': booking_id,
             'name': b['name'],
@@ -469,7 +466,6 @@ def checkout(booking_id):
     return jsonify({"message": "Card returned on time", "late": False})
 
 
-# ── My bookings ──
 @app.route("/api/my-bookings")
 def my_bookings():
     email = request.args.get("email", "").strip().lower()
@@ -488,7 +484,6 @@ def my_bookings():
     return jsonify([dict(r) for r in rows])
 
 
-# ── Machines ──
 @app.route("/api/machines")
 def get_machines():
     conn = get_db()
@@ -517,7 +512,6 @@ def toggle_machine():
     finally:
         conn.close()
 
-    # 🟢 EMIT MACHINE STATUS UPDATE
     socketio.emit('machine_updated', {
         'machine': make_json_serializable(dict(updated_machine)) if updated_machine else None,
         'timestamp': datetime.now().isoformat()
@@ -525,9 +519,9 @@ def toggle_machine():
 
     return jsonify({"message": "Machine status updated"})
 
-# At the very end of app.py, add these lines:
+
+# For gunicorn on Render
+application = app
+
 if __name__ == "__main__":
     socketio.run(app, debug=True, host="0.0.0.0", port=5000, allow_unsafe_werkzeug=True)
-
-# For gunicorn on Render:
-application = socketio
