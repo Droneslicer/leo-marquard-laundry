@@ -7,10 +7,10 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from apscheduler.schedulers.background import BackgroundScheduler
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
-from functools import lru_cache
 
 load_dotenv()
 
@@ -81,7 +81,6 @@ def init_db():
                     UNIQUE(facility, room)
                 );
             """)
-            # Add new columns if upgrading from old schema
             for col, definition in [
                 ("checked_in_at", "TIMESTAMP"),
                 ("checked_out", "BOOLEAN DEFAULT FALSE"),
@@ -100,73 +99,12 @@ def init_db():
 
 init_db()
 
-
-# ─── EMAIL ─────────────────────────────────────────────────────────
-import threading
-import queue
-import time
-
-# ─── EMAIL QUEUE SYSTEM (Permanent Fix) ─────────────────────────
-email_queue = queue.Queue()
-email_thread_running = True
-
-
-def email_worker():
-    """Background worker that processes emails one by one"""
-    while email_thread_running:
-        try:
-            email_task = email_queue.get(timeout=2)
-            if email_task is None:
-                break
-
-            to_addr, subject, html_body = email_task
-
-            if not MAIL_USER or not MAIL_PASS:
-                print(f"[EMAIL] Missing credentials - can't send to {to_addr}")
-                continue
-
-            try:
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = subject
-                msg["From"] = f"Leo Marquard Laundry <{MAIL_USER}>"
-                msg["To"] = to_addr
-                msg.attach(MIMEText(html_body, "html"))
-
-                # Try SSL first
-                try:
-                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
-                    server.login(MAIL_USER, MAIL_PASS)
-                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
-                    server.quit()
-                    print(f"[EMAIL] ✅ Sent to {to_addr}")
-                except:
-                    # Fallback to TLS
-                    server = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
-                    server.starttls()
-                    server.login(MAIL_USER, MAIL_PASS)
-                    server.sendmail(MAIL_USER, to_addr, msg.as_string())
-                    server.quit()
-                    print(f"[EMAIL] ✅ Sent to {to_addr} (TLS)")
-
-            except Exception as e:
-                print(f"[EMAIL] ❌ Failed to {to_addr}: {e}")
-
-        except queue.Empty:
-            continue
-        except Exception as e:
-            print(f"[EMAIL] Worker error: {e}")
-
-
-# Start email worker thread when app starts
-email_worker_thread = threading.Thread(target=email_worker, daemon=True)
-email_worker_thread.start()
-
-# ─── EMAIL FIX (Works with eventlet) ─────────────────────────────
-import socket
-import smtplib
-import threading
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# ─── EMAIL (SINGLE WORKING VERSION) ─────────────────────────────
+# Gmail SMTP direct IP addresses (bypasses DNS lookup timeout)
+GMAIL_SMTP_IPS = [
+    ("142.250.150.108", 465, "ssl"),  # Gmail SMTP IP (SSL)
+    ("142.250.150.108", 587, "tls"),  # Same IP (TLS)
+]
 
 
 def send_email(to_addr, subject, html_body):
@@ -175,7 +113,7 @@ def send_email(to_addr, subject, html_body):
     def _send():
         try:
             if not MAIL_USER or not MAIL_PASS:
-                print("[EMAIL] Missing credentials")
+                print(f"[EMAIL] Missing credentials: USER={bool(MAIL_USER)}, PASS={bool(MAIL_PASS)}")
                 return
 
             msg = MIMEMultipart("alternative")
@@ -184,14 +122,7 @@ def send_email(to_addr, subject, html_body):
             msg["To"] = to_addr
             msg.attach(MIMEText(html_body, "html"))
 
-            # Direct IP address for Gmail SMTP (bypasses DNS)
-            # This is the critical fix for "Lookup timed out"
-            smtp_servers = [
-                ("142.250.150.108", 465, "ssl"),  # Gmail SMTP IP
-                ("142.250.150.108", 587, "tls"),  # Same IP, different port
-            ]
-
-            for ip, port, method in smtp_servers:
+            for ip, port, method in GMAIL_SMTP_IPS:
                 try:
                     if method == "ssl":
                         server = smtplib.SMTP_SSL(ip, port, timeout=15)
@@ -208,7 +139,7 @@ def send_email(to_addr, subject, html_body):
                     print(f"[EMAIL] Failed {ip}:{port} - {e}")
                     continue
 
-            print(f"[EMAIL] ❌ All methods failed")
+            print(f"[EMAIL] ❌ All methods failed for {to_addr}")
 
         except Exception as e:
             print(f"[EMAIL] ❌ Error: {e}")
@@ -217,6 +148,7 @@ def send_email(to_addr, subject, html_body):
     thread.daemon = True
     thread.start()
     return True
+
 
 def confirmation_email_html(name, slot, facility, room, date, booking_id):
     return f"""
@@ -239,19 +171,17 @@ def reminder_email_html(name, slot, facility, room, date):
     <div style="font-family:monospace;background:#060a12;color:#eef2ff;padding:2rem;border-radius:1rem;max-width:400px;margin:auto">
       <h2 style="color:#00e5b0;margin-bottom:0.5rem">Laundry Reminder</h2>
       <p style="color:#7a8aaa;margin-bottom:1.5rem">Your slot starts in 10 minutes</p>
-      <table style="width:100%;border-collapse:collapse">
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Name</td><td style="color:#eef2ff">{name}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Date</td><td style="color:#eef2ff">{date}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Time</td><td style="color:#00e5b0;font-weight:700">{slot}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Facility</td><td style="color:#eef2ff">{facility}</td></tr>
-        <tr><td style="color:#7a8aaa;padding:0.4rem 0">Room</td><td style="color:#eef2ff">{room}</td></tr>
-      </table>
-      <p style="color:#7a8aaa;font-size:0.8rem;margin-top:1.5rem">Head to reception to collect your access card.</p>
+      <p><strong>Name:</strong> {name}</p>
+      <p><strong>Date:</strong> {date}</p>
+      <p><strong>Time:</strong> {slot}</p>
+      <p><strong>Facility:</strong> {facility}</p>
+      <p><strong>Room:</strong> {room}</p>
+      <p style="margin-top:1.5rem">Head to reception to collect your access card.</p>
     </div>
     """
 
 
-# ─── BACKGROUND JOBS (reduced frequency for performance) ──────────
+# ─── BACKGROUND JOBS ──────────────────────────────────────────────
 def job_send_reminders():
     now = datetime.now()
     target = now + timedelta(minutes=10)
@@ -289,16 +219,12 @@ def job_scavenge_abandoned():
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(job_send_reminders, "interval", minutes=5)  # Reduced from 1 minute
-scheduler.add_job(job_scavenge_abandoned, "interval", minutes=5)  # Reduced from 1 minute
+scheduler.add_job(job_send_reminders, "interval", minutes=5)
+scheduler.add_job(job_scavenge_abandoned, "interval", minutes=5)
 scheduler.start()
 
 
 # ─── HELPERS ───────────────────────────────────────────────────────
-def slot_to_datetime(date_str, slot_str):
-    return datetime.strptime(f"{date_str} {slot_str.split(' - ')[0]}", "%Y-%m-%d %H:%M")
-
-
 def slot_end_datetime(date_str, slot_str):
     return datetime.strptime(f"{date_str} {slot_str.split(' - ')[1]}", "%Y-%m-%d %H:%M")
 
@@ -342,22 +268,11 @@ def handle_disconnect():
 def handle_join_reception():
     join_room('reception_dashboard')
     print(f'Reception joined: {request.sid}')
-    emit('joined_reception', {'message': 'Connected to reception updates'}, room='reception_dashboard')
 
 
 @socketio.on('leave_reception')
 def handle_leave_reception():
     leave_room('reception_dashboard')
-
-
-@socketio.on('booking_made')
-def handle_booking_made(data):
-    print(f"Booking made event: {data}")
-
-
-@socketio.on('slot_conflict')
-def handle_slot_conflict(data):
-    print(f"⚠️ Slot conflict detected: {data}")
 
 
 # ─── ROUTES ────────────────────────────────────────────────────────
@@ -391,7 +306,6 @@ def book_slot():
     conn = get_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            # Check slot conflict
             cur.execute("""
                 SELECT id FROM bookings
                 WHERE facility=%s AND room=%s AND date=%s AND slot=%s AND status='confirmed'
@@ -399,13 +313,11 @@ def book_slot():
             if cur.fetchone():
                 return jsonify({"error": "That slot was just taken. Please choose another."}), 409
 
-            # One booking per person per day
             cur.execute("SELECT id FROM bookings WHERE email=%s AND date=%s AND status='confirmed'",
                         (email, data["date"]))
             if cur.fetchone():
                 return jsonify({"error": "You already have a booking today"}), 409
 
-            # Check machine
             cur.execute("SELECT working FROM machines WHERE facility=%s AND room=%s", (data["facility"], data["room"]))
             machine = cur.fetchone()
             if machine and not machine["working"]:
@@ -417,7 +329,6 @@ def book_slot():
             """, (data["name"], email, data["roomNumber"], data["facility"], data["room"], data["date"], data["slot"]))
             booking_id = cur.fetchone()["id"]
 
-            # Fetch the complete booking to emit
             cur.execute("SELECT * FROM bookings WHERE id=%s", (booking_id,))
             new_booking = cur.fetchone()
         conn.commit()
@@ -429,7 +340,6 @@ def book_slot():
                confirmation_email_html(data["name"], data["slot"], facility_name, data["room"], data["date"],
                                        booking_id))
 
-    # Emit real-time update to reception
     socketio.emit('new_booking', {
         'booking': make_json_serializable(dict(new_booking)),
         'timestamp': datetime.now().isoformat()
@@ -543,7 +453,6 @@ def checkout(booking_id):
             'late_minutes': late_mins,
             'timestamp': now.isoformat()
         }, room='reception_dashboard')
-
         return jsonify(
             {"message": f"Card returned — LATE by {late_mins} minute(s)", "late": True, "late_minutes": late_mins})
     return jsonify({"message": "Card returned on time", "late": False})
@@ -602,11 +511,13 @@ def toggle_machine():
 
     return jsonify({"message": "Machine status updated"})
 
+
 @app.route("/test-email")
 def test_email():
     email = request.args.get("email", MAIL_USER)
     send_email(email, "Test Email", "<h1>Test</h1><p>If you see this, email works!</p>")
     return f"Test email sent to {email}. Check your inbox/spam."
+
 
 # For gunicorn on Render
 application = app
