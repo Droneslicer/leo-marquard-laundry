@@ -24,7 +24,6 @@ const emailInput           = document.getElementById('email');
 const roomNumberInput      = document.getElementById('roomNumber');
 const globalOverlay        = document.getElementById('globalOverlay');
 const bookButton           = document.getElementById('bookButton');
-const selectionPreview     = document.getElementById('selectionPreview');
 
 // ===================== CONFIG =====================
 const FACILITY_CONFIG = {
@@ -163,23 +162,84 @@ function updateBookButton() {
     bookButton.disabled = !ready || isBooking;
 }
 
-// ===================== PREVIEW =====================
-function updatePreview() {
+// ===================== SELECTION DISPLAY (for the new card) =====================
+function updateSelectionDisplay() {
+    const container = document.getElementById('selectionContent');
+    if (!container) return;
+
     if (!currentFacility && !currentRoom && !selectedSlotLabel) {
-        selectionPreview.className = "selected-preview";
-        selectionPreview.innerHTML = `<div style="text-align:center;color:var(--text-muted)">— no selection yet —</div>`;
+        container.innerHTML = `
+            <div class="selection-empty">
+                <span class="empty-icon">👆</span>
+                <p>Select facility & room above</p>
+            </div>
+        `;
         return;
     }
-    selectionPreview.className = "selected-preview has-data";
-    const rows = [];
-    if (currentFacility) rows.push(`<div class="preview-row"><span>FACILITY</span><span class="preview-val">${FACILITY_CONFIG[currentFacility].display}</span></div>`);
-    if (currentRoom)     rows.push(`<div class="preview-row"><span>ROOM</span><span class="preview-val">${currentRoom}</span></div>`);
-    if (currentDate)     rows.push(`<div class="preview-row"><span>DATE</span><span class="preview-val">${currentDate}</span></div>`);
-    if (selectedSlotLabel) rows.push(`<div class="preview-row"><span>SLOT</span><span class="preview-val">${selectedSlotLabel}</span></div>`);
-    selectionPreview.innerHTML = rows.join('');
+
+    let html = '';
+    if (currentFacility) {
+        html += `
+            <div class="selection-item">
+                <span class="selection-label">FACILITY</span>
+                <span class="selection-value">${FACILITY_CONFIG[currentFacility].display}</span>
+            </div>
+        `;
+    }
+    if (currentRoom) {
+        html += `
+            <div class="selection-item">
+                <span class="selection-label">ROOM</span>
+                <span class="selection-value">${currentRoom}</span>
+            </div>
+        `;
+    }
+    if (currentDate) {
+        const displayDate = new Date(currentDate).toLocaleDateString('en-ZA', { weekday: 'short', month: 'short', day: 'numeric' });
+        html += `
+            <div class="selection-item">
+                <span class="selection-label">DATE</span>
+                <span class="selection-value">${displayDate}</span>
+            </div>
+        `;
+    }
+    if (selectedSlotLabel) {
+        html += `
+            <div class="selection-item">
+                <span class="selection-label">TIME SLOT</span>
+                <span class="selection-value">${selectedSlotLabel}</span>
+            </div>
+        `;
+    }
+
+    if (selectedSlotLabel) {
+        html += `
+            <div class="selection-booking-id">
+                ⚡ Ready to book this slot
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
 }
 
-// ===================== OVERLAY / DROPDOWNS =====================
+// ===================== RESET ALL SELECTIONS =====================
+window.resetAllSelection = function() {
+    currentFacility = null;
+    currentRoom = null;
+    selectedSlotLabel = null;
+    machineWorking = true;
+    machineNote = "";
+    facilitySelectedSpan.textContent = "Select facility";
+    roomSelectedSpan.textContent = "— First choose facility —";
+    roomTrigger.setAttribute('data-locked', 'true');
+    updateBookButton();
+    updateSelectionDisplay();
+    renderSlots();
+    showToast("Selection cleared", "info");
+};
+
+// ===================== DROPDOWNS & SELECTION =====================
 function closeDropdowns() {
     const menu = document.querySelector('.dropdown-menu');
     if (menu) menu.remove();
@@ -232,28 +292,33 @@ function openDropdown(type) {
 facilityTrigger.onclick = (e) => { e.stopPropagation(); openDropdown("facility"); };
 roomTrigger.onclick     = (e) => { e.stopPropagation(); if (!roomTrigger.hasAttribute('data-locked')) openDropdown("room"); };
 
-// ===================== SELECT =====================
 function selectFacility(key) {
-    currentFacility   = key;
-    currentRoom       = null;
+    facilityTrigger.classList.add('loading');
+    currentFacility = key;
+    currentRoom = null;
     selectedSlotLabel = null;
-    machineWorking    = true;
-    machineNote       = "";
+    machineWorking = true;
+    machineNote = "";
     facilitySelectedSpan.textContent = FACILITY_CONFIG[key].display;
-    roomSelectedSpan.textContent     = "Select room";
+    roomSelectedSpan.textContent = "Select room";
     roomTrigger.removeAttribute('data-locked');
-    updatePreview();
     updateBookButton();
-    renderSlots();
+    updateSelectionDisplay();
+    renderSlots().finally(() => {
+        facilityTrigger.classList.remove('loading');
+    });
 }
 
 function selectRoom(roomName) {
-    currentRoom       = roomName;
+    roomTrigger.classList.add('loading');
+    currentRoom = roomName;
     selectedSlotLabel = null;
     roomSelectedSpan.textContent = roomName;
-    updatePreview();
     updateBookButton();
-    renderSlots();
+    updateSelectionDisplay();
+    renderSlots().finally(() => {
+        roomTrigger.classList.remove('loading');
+    });
 }
 
 function selectSlot(slot) {
@@ -261,32 +326,32 @@ function selectSlot(slot) {
     document.querySelectorAll('.slot-node').forEach(node => {
         node.classList.toggle("selected-slot", node.dataset.slot === slot);
     });
-    updatePreview();
     updateBookButton();
+    updateSelectionDisplay();
 }
 
 dateInput.addEventListener("change", (e) => {
-    currentDate       = e.target.value;
+    currentDate = e.target.value;
     selectedSlotLabel = null;
-    updatePreview();
     updateBookButton();
+    updateSelectionDisplay();
     renderSlots();
 });
 
-// ===================== API =====================
+// ===================== API & SLOTS RENDERING =====================
 async function fetchAvailability() {
-    const res = await fetch(`/api/availability?facility=${encodeURIComponent(currentFacility)}&room=${encodeURIComponent(currentRoom)}&date=${currentDate}`);
+    const res = await fetch(`/api/availability?facility=${encodeURIComponent(currentFacility)}&room=${encodeURIComponent(currentRoom)}&date=${currentDate}&_t=${Date.now()}`);
     if (!res.ok) throw new Error("Network error");
     return await res.json();
 }
 
-// ===================== RENDER SLOTS =====================
 function renderSkeletons() {
     slotsContainer.innerHTML = "";
     const count = currentFacility ? FACILITY_CONFIG[currentFacility].getTimeSlots().length : 5;
     for (let i = 0; i < count; i++) {
         const sk = document.createElement("div");
         sk.className = "slot-skeleton";
+        sk.style.animationDelay = `${i * 0.05}s`;
         slotsContainer.appendChild(sk);
     }
 }
@@ -298,9 +363,9 @@ async function renderSlots() {
         return;
     }
 
-    const window = getBookingWindowStatus(currentFacility);
-    if (!window.open) {
-        slotsContainer.innerHTML = `<div class="empty-state">🔒 ${window.msg}</div>`;
+    const windowStatus = getBookingWindowStatus(currentFacility);
+    if (!windowStatus.open) {
+        slotsContainer.innerHTML = `<div class="empty-state">🔒 ${windowStatus.msg}</div>`;
         removeMachineBanner();
         return;
     }
@@ -325,8 +390,8 @@ async function renderSlots() {
 
         if (selectedSlotLabel && takenSlots.includes(selectedSlotLabel)) {
             selectedSlotLabel = null;
-            updatePreview();
             updateBookButton();
+            updateSelectionDisplay();
             showToast("Your selected slot was just taken — please choose another", "error");
         }
 
@@ -342,7 +407,11 @@ async function renderSlots() {
             div.style.animationDelay = `${i * 40}ms`;
             div.textContent = slot;
 
-            if (!isTaken) div.onclick = () => selectSlot(slot);
+            if (!isTaken) {
+                div.onclick = () => selectSlot(slot);
+                div.onmouseenter = () => { if (!isTaken) div.style.transform = "translateY(-2px)"; };
+                div.onmouseleave = () => { div.style.transform = ""; };
+            }
             slotsContainer.appendChild(div);
         });
 
@@ -368,7 +437,7 @@ function removeMachineBanner() {
     if (b) b.remove();
 }
 
-// ===================== VALIDATION =====================
+// ===================== VALIDATION & BOOKING =====================
 function validateInputs() {
     let ok = true;
     const name = fullNameInput.value.trim();
@@ -391,7 +460,6 @@ emailInput.addEventListener("input", () => {
     if (emailInput.value.endsWith("@myuct.ac.za")) emailInput.classList.remove("invalid");
 });
 
-// ===================== BOOKING FLOW =====================
 function buildPayload() {
     return {
         name: fullNameInput.value.trim(),
@@ -434,8 +502,8 @@ async function handleBooking() {
         showToast(`✓ Booking confirmed! Your Booking ID: #${data.booking_id}`, "success");
 
         selectedSlotLabel = null;
-        updatePreview();
         updateBookButton();
+        updateSelectionDisplay();
         await renderSlots();
 
     } catch (err) {
@@ -450,7 +518,7 @@ async function handleBooking() {
 
 bookButton.addEventListener("click", handleBooking);
 
-// Auto-refresh every 30 seconds
+// Auto-refresh slots every 30 seconds
 setInterval(() => {
     if (currentFacility && currentRoom) renderSlots();
 }, 30000);
@@ -489,18 +557,18 @@ function openMyBookingsModal() {
     loadMyBookingsEnhanced(email);
 }
 
-function closeMyBookingsModal() {
+window.closeMyBookingsModal = function() {
     const modal = document.getElementById("myBookingsModal");
     if (modal) modal.remove();
     globalOverlay.classList.remove("active");
-}
+};
 
-async function refreshMyBookings() {
+window.refreshMyBookings = function() {
     const email = emailInput.value.trim();
     if (email.endsWith("@myuct.ac.za")) {
-        await loadMyBookingsEnhanced(email);
+        loadMyBookingsEnhanced(email);
     }
-}
+};
 
 async function loadMyBookingsEnhanced(email) {
     const container = document.getElementById("myBookingsList");
@@ -552,11 +620,6 @@ async function loadMyBookingsEnhanced(email) {
         container.innerHTML = `<div class="error-message">❌ Failed to load bookings. Try again.</div>`;
     }
 }
-
-// Make functions global for HTML onclick
-window.openMyBookingsModal = openMyBookingsModal;
-window.closeMyBookingsModal = closeMyBookingsModal;
-window.refreshMyBookings = refreshMyBookings;
 
 // ===================== INITIALIZATION =====================
 addWSStatusIndicator();

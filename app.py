@@ -7,7 +7,6 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from psycopg2 import pool
-from functools import lru_cache
 
 load_dotenv()
 
@@ -95,7 +94,16 @@ def init_db():
                 ]
                 for m in default_machines:
                     cur.execute("INSERT INTO machines (facility, room, working, note) VALUES (%s,%s,%s,%s)", m)
+
+            # Create indexes for performance
+            cur.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_email_date ON bookings(email, date);")
+            cur.execute(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_facility_room_date ON bookings(facility, room, date, slot);")
+            cur.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_status ON bookings(status);")
+            cur.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_date ON bookings(date);")
         conn.commit()
+    except Exception as e:
+        print(f"Init DB error: {e}")
     finally:
         return_db(conn)
 
@@ -238,12 +246,10 @@ def book_slot():
 
 
 @app.route("/api/availability")
-@lru_cache(maxsize=128)
 def availability():
     facility = request.args.get("facility")
     room = request.args.get("room")
     date = request.args.get("date")
-    cache_buster = request.args.get("_t", "")
 
     conn = get_db()
     try:
@@ -261,8 +267,7 @@ def availability():
     return jsonify({
         "taken": taken,
         "machine_working": machine["working"] if machine else True,
-        "machine_note": machine["note"] if machine else "",
-        "_cache": cache_buster
+        "machine_note": machine["note"] if machine else ""
     })
 
 
@@ -414,6 +419,7 @@ def toggle_machine():
     return jsonify({"message": "Machine status updated"})
 
 
+# For gunicorn (Render)
 application = app
 
 if __name__ == "__main__":

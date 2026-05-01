@@ -2,228 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reception — Laundry Bookings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Reception · Leo Marquard Laundry</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --ink:       #0f1623;
-      --ink-mid:   #3a4560;
-      --ink-soft:  #7a8aaa;
-      --bg:        #f4f6fa;
-      --bg-card:   #ffffff;
-      --border:    #e2e7f0;
-      --border-dark: #c8d0e0;
-
-      --green:     #0b7a52;
-      --green-bg:  #e6f7f1;
-      --green-bdr: #a8dfc9;
-
-      --amber:     #92580a;
-      --amber-bg:  #fef8ec;
-      --amber-bdr: #f0d090;
-
-      --red:       #9b2335;
-      --red-bg:    #fdeef0;
-      --red-bdr:   #f0b8c0;
-
-      --blue:      #1a4f8a;
-      --blue-bg:   #eaf2fc;
-      --blue-bdr:  #aacbef;
-
-      --radius:    12px;
-      --radius-sm: 8px;
-    }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'IBM Plex Mono', monospace;
-      background: var(--bg);
-      color: var(--ink);
-      min-height: 100vh;
-    }
-
-    /* ── TOPBAR ── */
-    .topbar {
-      background: var(--bg-card);
-      border-bottom: 2px solid var(--border);
-      padding: 0 2rem;
-      height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-    .topbar-left {
-      display: flex;
-      align-items: baseline;
-      gap: 1rem;
-    }
-    .topbar-title {
-      font-family: 'Fraunces', serif;
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: var(--ink);
-      letter-spacing: -0.3px;
-    }
-    .topbar-sub {
-      font-size: 0.68rem;
-      color: var(--ink-soft);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    #liveClock {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--ink);
-      letter-spacing: 1px;
-    }
-    #liveDate {
-      font-size: 0.72rem;
-      color: var(--ink-soft);
-      letter-spacing: 0.5px;
-    }
-    .refresh-btn {
-      background: var(--ink);
-      color: white;
-      border: none;
-      border-radius: var(--radius-sm);
-      padding: 0.45rem 1rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 0.5px;
-      cursor: pointer;
-      transition: background 0.15s;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .refresh-btn:hover { background: var(--ink-mid); }
-    .refresh-btn.spinning svg { animation: spin 0.7s linear; }
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
-    }
-
-    /* ── MAIN LAYOUT ── */
-    .main {
-      max-width: 1300px;
-      margin: 0 auto;
+      background: #060a12;
+      font-family: 'Syne', sans-serif;
+      color: #eef2ff;
       padding: 2rem;
     }
 
-    /* ── FILTERS BAR ── */
-    .filters {
+    .reception-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .reception-header {
       display: flex;
-      gap: 0.8rem;
-      margin-bottom: 1.5rem;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
       flex-wrap: wrap;
-      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(0, 229, 176, 0.2);
+      padding-bottom: 1rem;
     }
-    .filter-label {
-      font-size: 0.65rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      margin-right: 0.2rem;
+    .reception-header h1 {
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, #fff, #00e5b0);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
     }
-    .filter-btn {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: 100px;
-      padding: 0.35rem 1rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--ink-mid);
-      cursor: pointer;
-      transition: all 0.15s;
-      font-weight: 500;
-    }
-    .filter-btn:hover { border-color: var(--ink-mid); color: var(--ink); }
-    .filter-btn.active {
-      background: var(--ink);
-      border-color: var(--ink);
-      color: white;
-    }
-    .search-wrap {
-      margin-left: auto;
-    }
-    .search-wrap input {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: 100px;
-      padding: 0.38rem 1rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.78rem;
-      color: var(--ink);
-      outline: none;
-      width: 220px;
-      transition: border-color 0.15s;
-    }
-    .search-wrap input:focus { border-color: var(--ink-mid); }
-    .search-wrap input::placeholder { color: var(--ink-soft); }
-
-    /* ── DATE PICKER ── */
-    .date-nav {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      margin-bottom: 1.8rem;
-    }
-    .date-nav-label {
-      font-family: 'Fraunces', serif;
-      font-size: 1.5rem;
-      font-weight: 500;
-      color: var(--ink);
-      letter-spacing: -0.3px;
-      min-width: 200px;
-    }
-    .date-nav-label span {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--ink-soft);
-      font-weight: 400;
-      display: block;
-      letter-spacing: 1px;
-    }
-    .nav-arrow {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius-sm);
-      width: 36px; height: 36px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      font-size: 1rem;
-      color: var(--ink-mid);
-      transition: all 0.15s;
-    }
-    .nav-arrow:hover { background: var(--ink); color: white; border-color: var(--ink); }
-    .today-btn {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius-sm);
-      padding: 0.35rem 0.9rem;
-      font-family: 'IBM Plex Mono', monospace;
+    .reception-header p {
+      font-family: 'DM Mono', monospace;
       font-size: 0.7rem;
-      color: var(--ink-mid);
-      cursor: pointer;
-      transition: all 0.15s;
-      font-weight: 500;
+      color: #7a8aaa;
     }
-    .today-btn:hover { background: var(--ink); color: white; border-color: var(--ink); }
+    .badge {
+      background: rgba(0, 229, 176, 0.15);
+      padding: 0.3rem 1rem;
+      border-radius: 2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      border: 1px solid rgba(0, 229, 176, 0.3);
+    }
 
-    /* ── STATS ROW ── */
     .stats-row {
       display: flex;
       gap: 1rem;
@@ -231,805 +60,499 @@
       flex-wrap: wrap;
     }
     .stat-card {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius);
-      padding: 1rem 1.4rem;
+      background: rgba(20, 25, 40, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.5rem;
+      padding: 1rem 1.5rem;
       flex: 1;
       min-width: 120px;
+      border: 1px solid rgba(255,255,255,0.05);
     }
-    .stat-num {
-      font-family: 'Fraunces', serif;
+    .stat-number {
       font-size: 2rem;
       font-weight: 700;
-      color: var(--ink);
+      color: #00e5b0;
       line-height: 1;
     }
     .stat-label {
+      font-family: 'DM Mono', monospace;
       font-size: 0.65rem;
-      letter-spacing: 1.5px;
+      color: #7a8aaa;
       text-transform: uppercase;
-      color: var(--ink-soft);
-      margin-top: 4px;
+      margin-top: 0.3rem;
     }
 
-    /* ── BOOKING CARDS ── */
-    .section-header {
-      font-size: 0.65rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      margin-bottom: 0.8rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border);
+    .machine-panel {
+      background: rgba(14, 20, 34, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .machine-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+      color: #7a8aaa;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .machine-group {
+      margin-bottom: 1rem;
+    }
+    .machine-group h4 {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: #a0b4d0;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid #00e5b0;
+      padding-left: 0.6rem;
+    }
+    .machine-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+    }
+    .machine-item {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 2rem;
+      padding: 0.5rem 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .machine-item.working {
+      background: rgba(0, 229, 176, 0.15);
+      border-color: #00e5b0;
+      color: #00e5b0;
+    }
+    .machine-item.broken {
+      background: rgba(255, 94, 108, 0.15);
+      border-color: #ff5e6c;
+      color: #ff5e6c;
+    }
+    .machine-item:hover {
+      transform: translateY(-2px);
+    }
+    .machine-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .working .machine-dot { background: #00e5b0; }
+    .broken .machine-dot { background: #ff5e6c; }
+
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-bottom: 1.5rem;
+      align-items: center;
+    }
+    .filter-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #a0b4d0;
+    }
+    .filter-btn.active {
+      background: #00e5b0;
+      border-color: #00e5b0;
+      color: #021812;
+    }
+    .search-input {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 2rem;
+      padding: 0.4rem 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: #eef2ff;
+      outline: none;
+      width: 200px;
+    }
+    .search-input:focus {
+      border-color: #00e5b0;
     }
 
     .bookings-list {
       display: flex;
       flex-direction: column;
-      gap: 0.7rem;
+      gap: 0.8rem;
     }
-
     .booking-card {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius);
-      padding: 1rem 1.2rem;
-      display: grid;
-      grid-template-columns: auto 1fr auto auto;
-      align-items: center;
-      gap: 1.2rem;
-      transition: box-shadow 0.15s, border-color 0.15s;
-      animation: cardIn 0.25s ease both;
+      background: rgba(14, 20, 34, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.2rem;
+      padding: 1rem;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: all 0.2s;
+      animation: fadeIn 0.3s ease;
     }
-    @keyframes cardIn {
+    @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .booking-card:hover {
-      border-color: var(--border-dark);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+      border-color: rgba(0, 229, 176, 0.3);
     }
-    .booking-card.status-active {
-      border-left: 4px solid var(--green);
-      background: linear-gradient(to right, var(--green-bg), var(--bg-card) 30%);
-    }
-    .booking-card.status-upcoming {
-      border-left: 4px solid #4a80cc;
-    }
-    .booking-card.status-done {
-      border-left: 4px solid var(--border-dark);
-      opacity: 0.6;
-    }
-
-    /* time column */
-    .card-time {
-      text-align: center;
-      min-width: 90px;
-    }
-    .card-time-slot {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--ink);
-      line-height: 1.4;
-    }
-    .card-time-slot span {
-      display: block;
-      font-size: 0.7rem;
-      font-weight: 400;
-      color: var(--ink-soft);
-    }
-
-    /* person column */
-    .card-person {
+    .booking-row {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
     }
-    .card-name {
-      font-family: 'Fraunces', serif;
+    .booking-info {
+      flex: 2;
+    }
+    .booking-name {
+      font-weight: 700;
       font-size: 1rem;
-      font-weight: 500;
-      color: var(--ink);
     }
-    .card-meta {
-      font-size: 0.68rem;
-      color: var(--ink-soft);
+    .booking-details {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: #7a8aaa;
+      margin-top: 0.2rem;
       display: flex;
-      gap: 0.8rem;
+      gap: 1rem;
       flex-wrap: wrap;
     }
-    .card-meta-item {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-    }
-
-    /* location column */
-    .card-location {
-      text-align: right;
-      min-width: 130px;
-    }
-    .card-facility {
-      font-size: 0.72rem;
+    .booking-slot {
+      background: rgba(0, 229, 176, 0.1);
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
       font-weight: 600;
-      color: var(--ink-mid);
-      letter-spacing: 0.3px;
+      color: #00e5b0;
     }
-    .card-room {
-      font-size: 0.68rem;
-      color: var(--ink-soft);
-      margin-top: 2px;
-    }
-
-    /* status badge column */
-    .status-badge {
+    .booking-status {
+      font-family: 'DM Mono', monospace;
       font-size: 0.65rem;
-      font-weight: 600;
-      letter-spacing: 0.8px;
       text-transform: uppercase;
-      padding: 0.3rem 0.75rem;
-      border-radius: 100px;
-      white-space: nowrap;
-      min-width: 80px;
-      text-align: center;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
     }
-    .status-badge.active   { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
-    .status-badge.upcoming { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-bdr); }
-    .status-badge.done     { background: var(--border);   color: var(--ink-soft); border: 1px solid var(--border-dark); }
-
-    /* ── EMPTY ── */
+    .status-active { background: rgba(0, 229, 176, 0.2); color: #00e5b0; }
+    .status-upcoming { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
+    .status-done { background: rgba(122, 138, 170, 0.2); color: #7a8aaa; }
+    .booking-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    button {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 2rem;
+      padding: 0.4rem 0.8rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #eef2ff;
+    }
+    button:hover {
+      background: #00e5b0;
+      color: #021812;
+      border-color: #00e5b0;
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .late-badge {
+      background: rgba(255, 94, 108, 0.2);
+      color: #ff5e6c;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-size: 0.65rem;
+      margin-left: 0.5rem;
+    }
     .empty-state {
       text-align: center;
-      padding: 4rem 2rem;
-      color: var(--ink-soft);
-      font-size: 0.8rem;
-      letter-spacing: 0.5px;
-    }
-    .empty-state .empty-icon {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      display: block;
+      padding: 3rem;
+      color: #7a8aaa;
+      font-family: 'DM Mono', monospace;
     }
 
-    /* ── NO RESULTS ── */
-    .no-results {
-      text-align: center;
-      padding: 2rem;
-      color: var(--ink-soft);
-      font-size: 0.78rem;
-    }
-
-    .btn-checkout {
-      background: var(--amber-bg);
-      border: 1.5px solid var(--amber-bdr);
-      border-radius: var(--radius-sm);
-      padding: 0.3rem 0.8rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: var(--amber);
-      cursor: pointer;
-      transition: all 0.15s;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-      margin-top: 0.4rem;
-    }
-    .btn-checkout:hover { background: var(--amber); color: white; }
-
-    .late-badge {
-      background: var(--red-bg);
-      border: 1px solid var(--red-bdr);
-      border-radius: var(--radius-sm);
-      padding: 0.25rem 0.6rem;
-      font-size: 0.62rem;
-      font-weight: 700;
-      color: var(--red);
-      letter-spacing: 0.5px;
-      margin-top: 0.3rem;
-      display: inline-block;
-    }
-
-    /* ── MACHINE TOGGLE ── */
-    .machine-panel {
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius);
-      padding: 1.2rem 1.4rem;
-      margin-bottom: 1.8rem;
-    }
-    .machine-panel-title {
-      font-size: 0.65rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .machine-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-    .machine-item {
-      display: flex; align-items: center; gap: 0.6rem;
-      background: var(--bg); border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius-sm); padding: 0.5rem 0.9rem;
-      font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
-      cursor: pointer; transition: all 0.15s; user-select: none;
-    }
-    .machine-item.working { border-color: var(--green-bdr); background: var(--green-bg); color: var(--green); }
-    .machine-item.broken  { border-color: var(--red-bdr);   background: var(--red-bg);   color: var(--red); }
-    .machine-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .machine-item.working .machine-dot { background: var(--green); }
-    .machine-item.broken  .machine-dot { background: var(--red); }
-
-    /* checkin button */
-    .btn-checkin {
-      background: var(--green-bg); border: 1.5px solid var(--green-bdr);
-      border-radius: var(--radius-sm); padding: 0.3rem 0.8rem;
-      font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem;
-      font-weight: 600; color: var(--green); cursor: pointer;
-      transition: all 0.15s; letter-spacing: 0.5px; white-space: nowrap;
-    }
-    .btn-checkin:hover { background: var(--green); color: white; }
-    .btn-checkin:disabled { opacity: 0.4; cursor: default; }
-
-    /* ── TOAST NOTIFICATIONS ── */
-    .toast-notification {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.8rem;
-      z-index: 10000;
-      animation: slideIn 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    .toast-success { background: var(--green); color: white; }
-    .toast-error { background: var(--red); color: white; }
-    .toast-warning { background: var(--amber); color: white; }
-    .toast-info { background: var(--blue); color: white; }
-
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-
-    /* ── WEBSOCKET STATUS INDICATOR ── */
-    .ws-status {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      background: var(--bg-card);
-      border: 1.5px solid var(--border-dark);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .ws-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-    .ws-dot.connected { background: var(--green); animation: pulse 2s infinite; }
-    .ws-dot.disconnected { background: var(--red); }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
-    /* ── RESPONSIVE ── */
     @media (max-width: 700px) {
-      .main { padding: 1rem; }
-      .topbar { padding: 0 1rem; }
-      .booking-card {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto;
-      }
-      .card-location { text-align: left; }
-      .status-badge { justify-self: end; }
-      .search-wrap input { width: 160px; }
+      body { padding: 1rem; }
+      .booking-row { flex-direction: column; align-items: stretch; }
+      .booking-actions { justify-content: flex-start; }
     }
   </style>
 </head>
 <body>
-
-<!-- TOPBAR -->
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-title">Leo Marquard Reception</div>
-    <div class="topbar-sub">Laundry Key Desk</div>
-  </div>
-  <div class="topbar-right">
+<div class="reception-container">
+  <div class="reception-header">
     <div>
-      <div id="liveClock">00:00:00</div>
-      <div id="liveDate">—</div>
+      <h1>🔑 Reception Desk</h1>
+      <p>Leo Marquard Laundry · Live Dashboard</p>
     </div>
-    <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
-      <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-      </svg>
-      REFRESH
-    </button>
-  </div>
-</div>
-
-<!-- MAIN -->
-<div class="main">
-
-  <!-- DATE NAV -->
-  <div class="date-nav">
-    <button class="nav-arrow" onclick="shiftDay(-1)">‹</button>
-    <button class="nav-arrow" onclick="shiftDay(1)">›</button>
-    <div class="date-nav-label">
-      <span id="dayLabel">MONDAY</span>
-      <span id="dateLabel" style="font-size:1.5rem; font-family:'Fraunces',serif; color:var(--ink); display:block; letter-spacing:-0.3px; margin-top:-2px;">1 January 2025</span>
-    </div>
-    <button class="today-btn" onclick="goToday()">TODAY</button>
+    <div class="badge" id="liveClock">--:--:--</div>
   </div>
 
-  <!-- MACHINE STATUS -->
-  <div class="machine-panel">
-    <div class="machine-panel-title">🔧 Machine Status — click to toggle</div>
-    <div class="machine-grid" id="machineGrid">
-      <div style="font-size:0.72rem;color:var(--ink-soft)">Loading machines…</div>
-    </div>
-  </div>
-
-  <!-- STATS -->
+  <!-- stats -->
   <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-num" id="statTotal">—</div>
-      <div class="stat-label">Total Bookings</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" id="statActive" style="color: var(--green)">—</div>
-      <div class="stat-label">Active Now</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" id="statUpcoming" style="color: var(--blue)">—</div>
-      <div class="stat-label">Upcoming</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" id="statDone" style="color: var(--ink-soft)">—</div>
-      <div class="stat-label">Completed</div>
-    </div>
+    <div class="stat-card"><div class="stat-number" id="statTotal">0</div><div class="stat-label">Total Today</div></div>
+    <div class="stat-card"><div class="stat-number" id="statActive">0</div><div class="stat-label">Active Now</div></div>
+    <div class="stat-card"><div class="stat-number" id="statUpcoming">0</div><div class="stat-label">Upcoming</div></div>
+    <div class="stat-card"><div class="stat-number" id="statDone">0</div><div class="stat-label">Completed</div></div>
   </div>
 
-  <!-- FILTERS -->
-  <div class="filters">
-    <span class="filter-label">Show:</span>
-    <button class="filter-btn active" data-filter="all"      onclick="setFilter('all', this)">All</button>
-    <button class="filter-btn"        data-filter="active"   onclick="setFilter('active', this)">Active Now</button>
-    <button class="filter-btn"        data-filter="upcoming" onclick="setFilter('upcoming', this)">Upcoming</button>
-    <button class="filter-btn"        data-filter="done"     onclick="setFilter('done', this)">Completed</button>
-    <div class="search-wrap">
-      <input type="text" id="searchInput" placeholder="Search name or room…" oninput="renderCards()">
-    </div>
+  <!-- machine panel – exactly the rooms you specified (with 3rd floor added) -->
+  <div class="machine-panel">
+    <div class="machine-title">🔧 Machine status · click to toggle</div>
+    <div id="machineGroups"></div>
   </div>
 
-  <!-- SECTION LABEL -->
-  <div class="section-header" id="sectionLabel">BOOKINGS</div>
-
-  <!-- CARDS -->
-  <div class="bookings-list" id="bookingsList">
-    <div class="empty-state">
-      <span class="empty-icon">📋</span>
-      Loading bookings…
-    </div>
+  <!-- filters -->
+  <div class="filters-bar">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+    <button class="filter-btn" data-filter="active" onclick="setFilter('active')">Active Now</button>
+    <button class="filter-btn" data-filter="upcoming" onclick="setFilter('upcoming')">Upcoming</button>
+    <button class="filter-btn" data-filter="done" onclick="setFilter('done')">Completed</button>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search name / room" oninput="renderBookings()">
+    <button onclick="refreshData()" style="margin-left: auto;">⟳ Refresh</button>
   </div>
 
+  <!-- bookings list -->
+  <div id="bookingsList" class="bookings-list">
+    <div class="empty-state">Loading bookings...</div>
+  </div>
 </div>
 
-<!-- WebSocket Status Indicator -->
-<div class="ws-status" id="wsStatus">
-  <div class="ws-dot disconnected" id="wsDot"></div>
-  <span id="wsText">Connecting...</span>
-</div>
-
-<!-- Socket.IO Client Library -->
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
 <script>
-// ── STATE ──────────────────────────────────────────
-let allBookings   = [];
-let viewDate      = new Date().toISOString().slice(0, 10);
-let activeFilter  = 'all';
-let socket = null;
-let wsConnected = false;
+  // ─── EXACT ROOMS (including 3rd floor) ───
+  const ALL_MACHINES = [
+    { facility: 'in-house', room: '2nd Floor' },
+    { facility: 'in-house', room: '3rd Floor' },
+    { facility: 'in-house', room: '5th Floor' },
+    { facility: 'in-house', room: '7th Floor' },
+    { facility: 'in-house', room: '9th Floor' },
+    { facility: 'basement', room: 'Basement 1' },
+    { facility: 'basement', room: 'Basement 3' }
+  ];
 
-// ── WEBSOCKET CONNECTION ──────────────────────────
-function initWebSocket() {
-    socket = io({
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000
+  let socket = null;
+  let allBookings = [];
+  let activeFilter = 'all';
+  let machineStates = {};
+
+  function getSlotStatus(dateStr, slotStr) {
+    const [start] = slotStr.split(' - ');
+    const now = new Date();
+    const slotStart = new Date(`${dateStr}T${start}:00`);
+    const slotEnd = new Date(`${dateStr}T${slotStr.split(' - ')[1]}:00`);
+    if (now >= slotStart && now < slotEnd) return 'active';
+    if (now < slotStart) return 'upcoming';
+    return 'done';
+  }
+
+  async function loadMachines() {
+    try {
+      const res = await fetch('/api/machines');
+      const dbMachines = await res.json();
+      machineStates = {};
+      dbMachines.forEach(m => {
+        const key = `${m.facility}|${m.room}`;
+        machineStates[key] = m.working;
+      });
+      ALL_MACHINES.forEach(m => {
+        const key = `${m.facility}|${m.room}`;
+        if (machineStates[key] === undefined) machineStates[key] = true;
+      });
+      renderMachines();
+    } catch(e) { console.error(e); }
+  }
+
+  function renderMachines() {
+    const groups = {
+      'in-house': { label: '🏠 In‑House Laundry', rooms: [] },
+      'basement': { label: '🏚️ Basement Laundry', rooms: [] }
+    };
+    ALL_MACHINES.forEach(m => {
+      const key = `${m.facility}|${m.room}`;
+      const working = machineStates[key];
+      groups[m.facility].rooms.push({ room: m.room, working });
     });
-
-    socket.on('connect', () => {
-        console.log('✅ WebSocket connected');
-        wsConnected = true;
-        updateWSStatus(true);
-        socket.emit('join_reception');
-        showToast('Live updates connected', 'success');
-    });
-
-    socket.on('disconnect', () => {
-        console.log('❌ WebSocket disconnected');
-        wsConnected = false;
-        updateWSStatus(false);
-        showToast('Disconnected from live updates', 'error');
-    });
-
-    socket.on('reconnect', () => {
-        console.log('🔄 WebSocket reconnected');
-        wsConnected = true;
-        updateWSStatus(true);
-        showToast('Reconnected to live updates', 'success');
-        refreshData();
-    });
-
-    socket.on('connect_error', (error) => {
-        console.error('WebSocket connection error:', error);
-        wsConnected = false;
-        updateWSStatus(false);
-    });
-
-    socket.on('new_booking', (data) => {
-        console.log('📖 New booking received:', data);
-        showToast(`🔔 New booking: ${data.booking.name} - ${data.booking.slot}`, 'info');
-        playNotificationSound();
-        refreshData();
-    });
-
-    socket.on('booking_updated', (data) => {
-        console.log('🔄 Booking updated:', data);
-        const actionText = data.action === 'checkin' ? 'checked in' : 'checked out';
-        showToast(`📌 Booking #${data.booking_id} ${actionText}`, 'info');
-        refreshData();
-    });
-
-    socket.on('late_return_alert', (data) => {
-        console.log('⚠️ Late return:', data);
-        showToast(`⚠️ LATE RETURN: ${data.name} from room ${data.room} (${data.late_minutes} min late)`, 'warning');
-        playAlertSound();
-        refreshData();
-    });
-
-    socket.on('machine_updated', (data) => {
-        console.log('🔧 Machine updated:', data);
-        showToast(`🔧 Machine ${data.machine.facility}/${data.machine.room} status changed`, 'info');
-        loadMachines();
-    });
-}
-
-function updateWSStatus(connected) {
-    const wsDot = document.getElementById('wsDot');
-    const wsText = document.getElementById('wsText');
-    if (connected) {
-        wsDot.className = 'ws-dot connected';
-        wsText.textContent = 'Live Updates';
-    } else {
-        wsDot.className = 'ws-dot disconnected';
-        wsText.textContent = 'Reconnecting...';
+    const container = document.getElementById('machineGroups');
+    container.innerHTML = '';
+    for (const [facility, data] of Object.entries(groups)) {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'machine-group';
+      groupDiv.innerHTML = `<h4>${data.label}</h4><div class="machine-grid" id="machine-grid-${facility}"></div>`;
+      container.appendChild(groupDiv);
+      const grid = groupDiv.querySelector(`.machine-grid`);
+      data.rooms.forEach(r => {
+        const btn = document.createElement('div');
+        btn.className = `machine-item ${r.working ? 'working' : 'broken'}`;
+        btn.innerHTML = `<div class="machine-dot"></div>${r.room} ${r.working ? '✅ Working' : '❌ Broken'}`;
+        btn.onclick = () => toggleMachine(facility, r.room, !r.working);
+        grid.appendChild(btn);
+      });
     }
-}
+  }
 
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast-notification toast-${type}`;
-    toast.innerHTML = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
-}
-
-function playNotificationSound() {
+  async function toggleMachine(facility, room, newWorking) {
     try {
-        const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCBzb3VuZA==');
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('Audio not supported'));
-    } catch(e) {}
-}
+      await fetch('/api/machines/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facility, room, working: newWorking, note: newWorking ? '' : 'Out of service' })
+      });
+      const key = `${facility}|${room}`;
+      machineStates[key] = newWorking;
+      renderMachines();
+    } catch(e) { console.error(e); }
+  }
 
-function playAlertSound() {
+  async function loadBookings() {
     try {
-        const audio = new Audio('data:audio/wav;base64,QWxlcnQgc291bmQ=');
-        audio.volume = 0.5;
-        audio.play().catch(e => console.log('Audio not supported'));
-    } catch(e) {}
-}
-
-function tickClock() {
-  const now = new Date();
-  document.getElementById('liveClock').textContent =
-    now.toLocaleTimeString('en-ZA', { hour12: false });
-  document.getElementById('liveDate').textContent =
-    now.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-}
-setInterval(tickClock, 1000);
-tickClock();
-
-setInterval(renderCards, 60000);
-
-function updateDateLabels() {
-  const d = new Date(viewDate + 'T12:00:00');
-  document.getElementById('dayLabel').textContent =
-    d.toLocaleDateString('en-ZA', { weekday: 'long' }).toUpperCase();
-  document.getElementById('dateLabel').textContent =
-    d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-function shiftDay(delta) {
-  const d = new Date(viewDate + 'T12:00:00');
-  d.setDate(d.getDate() + delta);
-  viewDate = d.toISOString().slice(0, 10);
-  updateDateLabels();
-  renderCards();
-}
-
-function goToday() {
-  viewDate = new Date().toISOString().slice(0, 10);
-  updateDateLabels();
-  renderCards();
-}
-
-updateDateLabels();
-
-function setFilter(f, btn) {
-  activeFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderCards();
-}
-
-function getSlotStatus(dateStr, slotStr) {
-  const [startStr, endStr] = slotStr.split(' - ');
-  const now   = new Date();
-  const start = new Date(`${dateStr}T${startStr}:00`);
-  const end   = new Date(`${dateStr}T${endStr}:00`);
-
-  if (now >= start && now < end) return 'active';
-  if (now < start)               return 'upcoming';
-  return 'done';
-}
-
-async function refreshData() {
-  await loadBookings();
-  await loadMachines();
-}
-
-async function loadBookings() {
-  const btn  = document.getElementById('refreshBtn');
-  const icon = document.getElementById('refreshIcon');
-  if (btn) btn.classList.add('spinning');
-  if (icon) icon.classList.add('spinning');
-
-  try {
-    const res  = await fetch('/api/bookings');
-    allBookings = await res.json();
-    renderCards();
-    updateStats();
-  } catch (e) {
-    document.getElementById('bookingsList').innerHTML =
-      `<div class="empty-state"><span class="empty-icon">⚠️</span>Could not load bookings. Is the server running?</div>`;
-  } finally {
-    setTimeout(() => {
-      if (btn) btn.classList.remove('spinning');
-      if (icon) icon.classList.remove('spinning');
-    }, 600);
-  }
-}
-
-function updateStats() {
-  const filtered = allBookings.filter(b => b.date === viewDate);
-  const annotated = filtered.map(b => ({
-    ...b,
-    status: getSlotStatus(b.date, b.slot)
-  }));
-  const active   = annotated.filter(b => b.status === 'active').length;
-  const upcoming = annotated.filter(b => b.status === 'upcoming').length;
-  const done     = annotated.filter(b => b.status === 'done').length;
-  document.getElementById('statTotal').textContent    = annotated.length;
-  document.getElementById('statActive').textContent   = active;
-  document.getElementById('statUpcoming').textContent = upcoming;
-  document.getElementById('statDone').textContent     = done;
-}
-
-function renderCards() {
-  const list   = document.getElementById('bookingsList');
-  const search = document.getElementById('searchInput').value.trim().toLowerCase();
-
-  let filtered = allBookings.filter(b => b.date === viewDate);
-
-  if (search) {
-    filtered = filtered.filter(b =>
-      b.name.toLowerCase().includes(search) ||
-      (b.room_number || '').toLowerCase().includes(search) ||
-      b.email.toLowerCase().includes(search) ||
-      b.room.toLowerCase().includes(search)
-    );
+      const res = await fetch('/api/bookings');
+      allBookings = await res.json();
+      renderBookings();
+      updateStats();
+    } catch(e) { console.error(e); }
   }
 
-  const annotated = filtered.map(b => ({
-    ...b,
-    status: getSlotStatus(b.date, b.slot)
-  }));
-
-  const display = activeFilter === 'all'
-    ? annotated
-    : annotated.filter(b => b.status === activeFilter);
-
-  display.sort((a, b) => {
-    const order = { active: 0, upcoming: 1, done: 2 };
-    if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
-    return a.slot.localeCompare(b.slot);
-  });
-
-  document.getElementById('sectionLabel').textContent =
-    `${display.length} BOOKING${display.length !== 1 ? 'S' : ''} · ${viewDate}`;
-
-  if (display.length === 0) {
-    const msg = search
-      ? `No results for "${search}"`
-      : annotated.length === 0
-        ? 'No bookings for this date'
-        : `No ${activeFilter} bookings`;
-    list.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span>${msg}</div>`;
-    return;
+  function updateStats() {
+    const today = new Date().toISOString().slice(0,10);
+    const todayBookings = allBookings.filter(b => b.date === today);
+    const active = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'active').length;
+    const upcoming = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'upcoming').length;
+    const done = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'done').length;
+    document.getElementById('statTotal').innerText = todayBookings.length;
+    document.getElementById('statActive').innerText = active;
+    document.getElementById('statUpcoming').innerText = upcoming;
+    document.getElementById('statDone').innerText = done;
   }
 
-  list.innerHTML = display.map((b, i) => {
-    const statusLabel   = b.status === 'active' ? 'ACTIVE NOW' : b.status === 'upcoming' ? 'UPCOMING' : 'DONE';
-    const facilityName  = b.facility === 'in-house' ? '🏠 In-House' : '🏚️ Basement';
-    const [startT, endT] = b.slot.split(' - ');
-    const canCheckin    = b.status === 'active' && !b.checked_in && !b.checked_out;
-    const roomNum       = b.room_number || b.roomNumber || '—';
-    const checkinBtn  = canCheckin
-      ? `<button class="btn-checkin" style="margin-top:0.5rem" onclick="checkIn(${b.id}, this)">✓ CHECK IN</button>`
-      : '';
-    const checkedInLabel = b.checked_in && !b.checked_out
-      ? `<div style="font-size:0.62rem;color:var(--green);margin-top:0.4rem;font-family:'IBM Plex Mono',monospace">✓ CARD ISSUED</div>
-         <button class="btn-checkout" onclick="checkOut(${b.id}, this)">↩ RETURN CARD</button>`
-      : '';
-    const checkedOutLabel = b.checked_out
-      ? `<div style="font-size:0.62rem;color:var(--ink-soft);margin-top:0.4rem;font-family:'IBM Plex Mono',monospace">✓ CARD RETURNED</div>
-         ${b.late_return ? `<div class="late-badge">⚠ LATE +${b.late_minutes}min</div>` : ''}`
-      : '';
+  function renderBookings() {
+    const container = document.getElementById('bookingsList');
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    let filtered = allBookings.filter(b => {
+      const matchesSearch = b.name.toLowerCase().includes(searchTerm) || (b.room_number || '').toLowerCase().includes(searchTerm);
+      const status = getSlotStatus(b.date, b.slot);
+      if (activeFilter === 'all') return matchesSearch;
+      return matchesSearch && status === activeFilter;
+    });
+    filtered.sort((a,b) => {
+      const order = {active:0, upcoming:1, done:2};
+      const statusA = getSlotStatus(a.date, a.slot);
+      const statusB = getSlotStatus(b.date, b.slot);
+      if(order[statusA] !== order[statusB]) return order[statusA] - order[statusB];
+      return a.slot.localeCompare(b.slot);
+    });
 
-    return `
-      <div class="booking-card status-${b.status}" style="animation-delay:${i * 35}ms">
-        <div class="card-time">
-          <div class="card-time-slot">
-            ${startT}<span>to ${endT}</span>
-          </div>
-          ${checkinBtn}
-          ${checkedInLabel}
-          ${checkedOutLabel}
-        </div>
-        <div class="card-person">
-          <div class="card-name">${escHtml(b.name)}</div>
-          <div class="card-meta">
-            <span class="card-meta-item">🚪 Room ${escHtml(roomNum)}</span>
-            <span class="card-meta-item">✉ ${escHtml(b.email)}</span>
+    if(filtered.length === 0) {
+      container.innerHTML = '<div class="empty-state">📭 No bookings match</div>';
+      return;
+    }
+
+    container.innerHTML = filtered.map(b => {
+      const status = getSlotStatus(b.date, b.slot);
+      const statusClass = `status-${status}`;
+      const facilityIcon = b.facility === 'in-house' ? '🏠' : '🏚️';
+      const canCheckin = (status === 'active') && !b.checked_in && !b.checked_out;
+      const checkedInLabel = b.checked_in && !b.checked_out ? '✓ Card issued' : '';
+      const checkedOutLabel = b.checked_out ? (b.late_return ? `⚠️ Late +${b.late_minutes}min` : '✓ Card returned') : '';
+      return `
+        <div class="booking-card">
+          <div class="booking-row">
+            <div class="booking-info">
+              <div class="booking-name">${escapeHtml(b.name)}</div>
+              <div class="booking-details">
+                <span>${facilityIcon} ${b.room}</span>
+                <span>🚪 ${b.room_number}</span>
+                <span class="booking-slot">${b.slot}</span>
+                <span>📅 ${b.date}</span>
+              </div>
+              <div style="margin-top: 5px; display: flex; gap: 0.5rem; align-items: center;">
+                <span class="booking-status ${statusClass}">${status.toUpperCase()}</span>
+                ${checkedInLabel ? `<span style="font-size:0.65rem; color:#00e5b0;">${checkedInLabel}</span>` : ''}
+                ${checkedOutLabel ? `<span style="font-size:0.65rem; color:#7a8aaa;">${checkedOutLabel}</span>` : ''}
+              </div>
+            </div>
+            <div class="booking-actions">
+              ${canCheckin ? `<button onclick="checkIn(${b.id})">🎫 Check in</button>` : ''}
+              ${(b.checked_in && !b.checked_out) ? `<button onclick="checkOut(${b.id})">↩ Return card</button>` : ''}
+            </div>
           </div>
         </div>
-        <div class="card-location">
-          <div class="card-facility">${facilityName}</div>
-          <div class="card-room">${escHtml(b.room)}</div>
-        </div>
-        <div class="status-badge ${b.status}">${b.status === 'abandoned' ? 'ABANDONED' : statusLabel}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-async function checkIn(bookingId, btn) {
-  btn.disabled    = true;
-  btn.textContent = '…';
-  try {
-    const res = await fetch(`/api/checkin/${bookingId}`, { method: 'POST' });
-    if (res.ok) {
-      showToast(`✅ Checked in booking #${bookingId}`, 'success');
-      refreshData();
-    }
-  } catch (e) {
-    btn.disabled    = false;
-    btn.textContent = '✓ CHECK IN';
+      `;
+    }).join('');
   }
-}
 
-async function checkOut(bookingId, btn) {
-  btn.disabled    = true;
-  btn.textContent = '…';
-  try {
-    const res  = await fetch(`/api/checkout/${bookingId}`, { method: 'POST' });
-    const data = await res.json();
-    if (data.late) {
-      showToast(`⚠ LATE RETURN: ${data.late_minutes} minutes late`, 'warning');
-    } else {
-      showToast(`✅ Checked out booking #${bookingId}`, 'success');
-    }
-    refreshData();
-  } catch (e) {
-    btn.disabled    = false;
-    btn.textContent = '↩ RETURN CARD';
-  }
-}
-
-const ALL_MACHINES = [
-  { facility: 'in-house', room: '2nd Floor' },
-  { facility: 'in-house', room: '3rd Floor' },
-  { facility: 'in-house', room: '5th Floor' },
-  { facility: 'in-house', room: '7th Floor' },
-  { facility: 'in-house', room: '9th Floor' },
-  { facility: 'basement', room: 'Basement 1' },
-  { facility: 'basement', room: 'Basement 3' },
-];
-
-let machineStates = {};
-
-async function loadMachines() {
-  try {
-    const res  = await fetch('/api/machines');
-    const data = await res.json();
-    data.forEach(m => {
-      machineStates[`${m.facility}|${m.room}`] = m.working;
+  function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+      if(m === '&') return '&amp;';
+      if(m === '<') return '&lt;';
+      if(m === '>') return '&gt;';
+      return m;
     });
-  } catch (e) {}
-  renderMachines();
-}
-
-function renderMachines() {
-  const grid = document.getElementById('machineGrid');
-  if (!grid) return;
-  grid.innerHTML = ALL_MACHINES.map(m => {
-    const key     = `${m.facility}|${m.room}`;
-    const working = machineStates[key] !== false;
-    const label   = m.facility === 'in-house' ? `🏠 ${m.room}` : `🏚️ ${m.room}`;
-    return `
-      <div class="machine-item ${working ? 'working' : 'broken'}" onclick="toggleMachine('${m.facility}', '${m.room}', ${!working})">
-        <div class="machine-dot"></div>
-        ${label}
-      </div>
-    `;
-  }).join('');
-}
-
-async function toggleMachine(facility, room, newWorking) {
-  const key = `${facility}|${room}`;
-  machineStates[key] = newWorking;
-  renderMachines();
-  try {
-    await fetch('/api/machines/toggle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ facility, room, working: newWorking, note: newWorking ? '' : 'Out of service' })
-    });
-  } catch (e) {
-    machineStates[key] = !newWorking;
-    renderMachines();
   }
-}
 
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+  async function checkIn(id) {
+    try {
+      await fetch(`/api/checkin/${id}`, { method: 'POST' });
+      await loadBookings();
+      await loadMachines();
+    } catch(e) { console.error(e); }
+  }
 
-// ── INITIALIZATION ──
-initWebSocket();
-loadMachines();
-loadBookings();
-setInterval(refreshData, 30000);
+  async function checkOut(id) {
+    try {
+      await fetch(`/api/checkout/${id}`, { method: 'POST' });
+      await loadBookings();
+    } catch(e) { console.error(e); }
+  }
+
+  function refreshData() {
+    loadBookings();
+    loadMachines();
+  }
+
+  function setFilter(filter) {
+    activeFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.filter-btn[data-filter="${filter}"]`).classList.add('active');
+    renderBookings();
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('liveClock').innerHTML = now.toLocaleTimeString('en-ZA');
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function initWebSocket() {
+    socket = io({ transports: ['polling', 'websocket'] });
+    socket.on('connect', () => console.log('Reception connected'));
+    socket.on('new_booking', () => refreshData());
+    socket.on('booking_updated', () => refreshData());
+    socket.on('machine_updated', () => loadMachines());
+  }
+
+  initWebSocket();
+  loadBookings();
+  loadMachines();
+  setInterval(refreshData, 30000);
 </script>
 </body>
 </html>
