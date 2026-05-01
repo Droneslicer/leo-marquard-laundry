@@ -161,14 +161,54 @@ def email_worker():
 email_worker_thread = threading.Thread(target=email_worker, daemon=True)
 email_worker_thread.start()
 
+# ─── EMAIL FIX (Works with eventlet) ─────────────────────────────
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import threading
+
 
 def send_email(to_addr, subject, html_body):
-    """Queue email for sending (non-blocking)"""
-    if not to_addr:
-        return False
+    """Send email in background thread - works with eventlet"""
 
-    email_queue.put((to_addr, subject, html_body))
-    print(f"[EMAIL] 📧 Queued for {to_addr}")
+    def _send():
+        try:
+            if not MAIL_USER or not MAIL_PASS:
+                print(f"[EMAIL] Missing credentials: USER={bool(MAIL_USER)}, PASS={bool(MAIL_PASS)}")
+                return
+
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = MAIL_USER
+            msg["To"] = to_addr
+            msg.attach(MIMEText(html_body, "html"))
+
+            # Try SSL (port 465)
+            try:
+                server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
+                server.login(MAIL_USER, MAIL_PASS)
+                server.sendmail(MAIL_USER, to_addr, msg.as_string())
+                server.quit()
+                print(f"[EMAIL] ✅ Sent to {to_addr}")
+                return
+            except Exception as e:
+                print(f"[EMAIL] SSL failed: {e}, trying TLS...")
+
+            # Fallback to TLS (port 587)
+            server = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
+            server.starttls()
+            server.login(MAIL_USER, MAIL_PASS)
+            server.sendmail(MAIL_USER, to_addr, msg.as_string())
+            server.quit()
+            print(f"[EMAIL] ✅ Sent to {to_addr} via TLS")
+
+        except Exception as e:
+            print(f"[EMAIL] ❌ Failed to {to_addr}: {e}")
+
+    # Run email in background thread (doesn't block eventlet)
+    thread = threading.Thread(target=_send)
+    thread.daemon = True
+    thread.start()
     return True
 
 
@@ -555,6 +595,12 @@ def toggle_machine():
     }, room='reception_dashboard')
 
     return jsonify({"message": "Machine status updated"})
+
+@app.route("/test-email")
+def test_email():
+    email = request.args.get("email", MAIL_USER)
+    send_email(email, "Test Email", "<h1>Test</h1><p>If you see this, email works!</p>")
+    return f"Test email sent to {email}. Check your inbox/spam."
 
 # For gunicorn on Render
 application = app
