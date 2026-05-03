@@ -22,6 +22,8 @@ db_pool = None
 
 def init_db_pool():
     global db_pool
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is not set")
     if not db_pool:
         db_pool = pool.SimpleConnectionPool(1, 20, DATABASE_URL, sslmode="require")
     return db_pool
@@ -48,7 +50,7 @@ def make_json_serializable(obj):
         return obj
 
 
-# ─── DATABASE INIT ──────────────────────────────────────────────
+# DATABASE INIT
 def init_db():
     conn = get_db()
     try:
@@ -95,23 +97,27 @@ def init_db():
                 for m in default_machines:
                     cur.execute("INSERT INTO machines (facility, room, working, note) VALUES (%s,%s,%s,%s)", m)
 
-            # Create indexes for performance
-            cur.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_email_date ON bookings(email, date);")
+            # CREATE INDEX CONCURRENTLY cannot run inside psycopg2's default transaction.
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_bookings_email_date ON bookings(email, date);")
             cur.execute(
-                "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_facility_room_date ON bookings(facility, room, date, slot);")
-            cur.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_status ON bookings(status);")
-            cur.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bookings_date ON bookings(date);")
+                "CREATE INDEX IF NOT EXISTS idx_bookings_facility_room_date ON bookings(facility, room, date, slot);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(date);")
         conn.commit()
     except Exception as e:
+        conn.rollback()
         print(f"Init DB error: {e}")
     finally:
         return_db(conn)
 
 
-init_db()
+if DATABASE_URL:
+    init_db()
+else:
+    print("DATABASE_URL is not set; skipping database initialization")
 
 
-# ─── BACKGROUND JOBS ──────────────────────────────────────────────
+# BACKGROUND JOBS
 def job_scavenge_abandoned():
     now = datetime.now()
     conn = get_db()
@@ -135,7 +141,7 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(job_scavenge_abandoned, "interval", minutes=10)
 scheduler.start()
 
-# ─── HELPERS ───────────────────────────────────────────────────────
+# HELPERS
 FACILITY_OPEN_HOUR = {"in-house": 6, "basement": 6}
 
 
@@ -156,7 +162,7 @@ def is_booking_allowed(date_str, facility, slot_str=None):
         return False, "Invalid date"
 
 
-# ─── WEBSOCKET HANDLERS ────────────────────────────────────────────
+# WEBSOCKET HANDLERS
 @socketio.on('connect')
 def handle_connect():
     print(f'Client connected: {request.sid}')
@@ -173,7 +179,7 @@ def handle_join_reception():
     print(f'Reception joined: {request.sid}')
 
 
-# ─── ROUTES ────────────────────────────────────────────────────────
+# ROUTES
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -332,7 +338,7 @@ def checkin(booking_id):
             'action': 'checkin',
             'booking': make_json_serializable(dict(updated))
         }, room='reception_dashboard')
-        return jsonify({"message": "Checked in — card issued"})
+        return jsonify({"message": "Checked in - card issued"})
     return jsonify({"error": "Already checked in or not found"}), 400
 
 
@@ -377,7 +383,7 @@ def checkout(booking_id):
                 'late_minutes': late_mins
             }, room='reception_dashboard')
 
-        msg = f"Card returned — LATE by {late_mins} min" if is_late else "Card returned on time"
+        msg = f"Card returned - LATE by {late_mins} min" if is_late else "Card returned on time"
         return jsonify({"message": msg, "late": is_late, "late_minutes": late_mins})
     return jsonify({"error": "Already checked out"}), 400
 
