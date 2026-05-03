@@ -1,103 +1,529 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Leo Marquard Reception</title>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Reception · Leo Marquard Laundry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #0b1014;
-      --panel: #111922;
-      --panel-2: #172230;
-      --line: #263442;
-      --text: #edf4f7;
-      --muted: #91a3ad;
-      --gold: #d6ad5b;
-      --teal: #5fd0bd;
-      --danger: #ff6b6b;
-      --ok: #7bd88f;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #060a12;
+      font-family: 'Syne', sans-serif;
+      color: #eef2ff;
+      padding: 2rem;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; font-family: Inter, Segoe UI, system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    header, main { width: min(1260px, calc(100% - 32px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 26px 0 16px; }
-    h1 { margin: 0; font-size: clamp(26px, 4vw, 42px); letter-spacing: 0; }
-    .subtitle { color: var(--muted); margin-top: 5px; }
-    .stats { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 10px; margin-bottom: 16px; }
-    .stat, .panel, .booking, .machine { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
-    .stat { padding: 14px; }
-    .stat strong { display: block; font-size: 28px; color: var(--gold); }
-    .stat span { color: var(--muted); font-size: 13px; }
-    .layout { display: grid; grid-template-columns: 1fr 360px; gap: 16px; padding-bottom: 34px; }
-    .panel { padding: 18px; }
-    .toolbar { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 14px; }
-    input, button, textarea {
-      font: inherit;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      background: #0d141c;
-      color: var(--text);
-      min-height: 40px;
-      padding: 0 11px;
+
+    .reception-container { max-width: 1400px; margin: 0 auto; }
+
+    .reception-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(0, 229, 176, 0.2);
+      padding-bottom: 1rem;
     }
-    button { cursor: pointer; font-weight: 800; }
-    button.primary { background: var(--gold); border-color: var(--gold); color: #171106; }
-    button.secondary { background: var(--panel-2); }
-    button.danger { background: #3a1518; border-color: #743138; color: #ffd1d1; }
-    .booking-list, .machine-list { display: grid; gap: 10px; }
-    .booking { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 14px; }
-    .muted { color: var(--muted); }
-    .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: end; }
-    .pill { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; background: var(--teal); color: #071412; font-size: 12px; font-weight: 900; }
-    .pill.confirmed { background: var(--gold); color: #171106; }
-    .pill.completed { background: var(--ok); }
-    .pill.abandoned, .pill.off, .pill.late { background: var(--danger); color: #260a0a; }
-    .machine { padding: 12px; display: grid; gap: 10px; }
-    .machine-top { display: flex; justify-content: space-between; gap: 10px; }
-    textarea { width: 100%; padding-top: 9px; min-height: 68px; resize: vertical; }
-    @media (max-width: 960px) {
-      .layout, .stats { grid-template-columns: 1fr; }
-      .booking { grid-template-columns: 1fr; }
-      .actions { justify-content: start; }
+    .reception-header h1 {
+      font-size: 1.8rem;
+      background: linear-gradient(135deg, #fff, #00e5b0);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .reception-header p {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: #7a8aaa;
+    }
+    .badge {
+      background: rgba(0, 229, 176, 0.15);
+      padding: 0.3rem 1rem;
+      border-radius: 2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      border: 1px solid rgba(0, 229, 176, 0.3);
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: rgba(20, 25, 40, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.5rem;
+      padding: 1rem 1.5rem;
+      flex: 1;
+      min-width: 100px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #00e5b0;
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: #7a8aaa;
+      text-transform: uppercase;
+      margin-top: 0.3rem;
+    }
+
+    .machine-panel {
+      background: rgba(14, 20, 34, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .machine-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 1px;
+      color: #7a8aaa;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .machine-group { margin-bottom: 1rem; }
+    .machine-group h4 {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: #a0b4d0;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid #00e5b0;
+      padding-left: 0.6rem;
+    }
+    .machine-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+    }
+    .machine-item {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 2rem;
+      padding: 0.5rem 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .machine-item.working {
+      background: rgba(0, 229, 176, 0.15);
+      border-color: #00e5b0;
+      color: #00e5b0;
+    }
+    .machine-item.broken {
+      background: rgba(255, 94, 108, 0.15);
+      border-color: #ff5e6c;
+      color: #ff5e6c;
+    }
+    .machine-item:hover { transform: translateY(-2px); }
+    .machine-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .working .machine-dot { background: #00e5b0; }
+    .broken .machine-dot { background: #ff5e6c; }
+
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-bottom: 1.5rem;
+      align-items: center;
+    }
+    .filter-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #a0b4d0;
+    }
+    .filter-btn.active {
+      background: #00e5b0;
+      border-color: #00e5b0;
+      color: #021812;
+    }
+    .search-input {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 2rem;
+      padding: 0.4rem 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: #eef2ff;
+      outline: none;
+      width: 200px;
+    }
+    .search-input:focus { border-color: #00e5b0; }
+
+    .bookings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .booking-card {
+      background: rgba(14, 20, 34, 0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 1.2rem;
+      padding: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.2s;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .booking-card:hover { border-color: rgba(0, 229, 176, 0.3); }
+    .booking-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .booking-info { flex: 2; }
+    .booking-name { font-weight: 700; font-size: 1rem; }
+    .booking-details {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: #7a8aaa;
+      margin-top: 0.2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .booking-slot {
+      background: rgba(0, 229, 176, 0.1);
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-weight: 600;
+      color: #00e5b0;
+    }
+    .booking-status {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+    }
+    .status-active { background: rgba(0, 229, 176, 0.2); color: #00e5b0; }
+    .status-upcoming { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
+    .status-done { background: rgba(122, 138, 170, 0.2); color: #7a8aaa; }
+    .booking-actions { display: flex; gap: 0.5rem; }
+    button {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 2rem;
+      padding: 0.4rem 0.8rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #eef2ff;
+    }
+    button:hover {
+      background: #00e5b0;
+      color: #021812;
+      border-color: #00e5b0;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .late-badge {
+      background: rgba(255, 94, 108, 0.2);
+      color: #ff5e6c;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-size: 0.65rem;
+      margin-left: 0.5rem;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 1rem; }
+      .booking-row { flex-direction: column; align-items: stretch; }
+      .booking-actions { justify-content: flex-start; }
     }
   </style>
 </head>
-<body data-page="reception">
-  <header>
+<body>
+<div class="reception-container">
+  <div class="reception-header">
     <div>
-      <h1>Reception Dashboard</h1>
-      <div class="subtitle">Leo Marquard laundry bookings, check-ins, returns, and machines.</div>
+      <h1>🔑 Reception Desk</h1>
+      <p>Leo Marquard Laundry · Live Dashboard</p>
     </div>
-    <button class="secondary" id="refreshReception">Refresh</button>
-  </header>
+    <div class="badge" id="liveClock">--:--:--</div>
+  </div>
 
-  <main>
-    <section class="stats">
-      <div class="stat"><strong id="statTotal">0</strong><span>Total</span></div>
-      <div class="stat"><strong id="statConfirmed">0</strong><span>Waiting</span></div>
-      <div class="stat"><strong id="statCheckedIn">0</strong><span>Checked In</span></div>
-      <div class="stat"><strong id="statCompleted">0</strong><span>Completed</span></div>
-      <div class="stat"><strong id="statAbandoned">0</strong><span>Abandoned</span></div>
-      <div class="stat"><strong id="statLate">0</strong><span>Late</span></div>
-    </section>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-number" id="statTotal">0</div><div class="stat-label">Total Today</div></div>
+    <div class="stat-card"><div class="stat-number" id="statActive">0</div><div class="stat-label">Active Now</div></div>
+    <div class="stat-card"><div class="stat-number" id="statUpcoming">0</div><div class="stat-label">Upcoming</div></div>
+    <div class="stat-card"><div class="stat-number" id="statDone">0</div><div class="stat-label">Completed</div></div>
+  </div>
 
-    <section class="layout">
-      <div class="panel">
-        <div class="toolbar">
-          <h2>Today</h2>
-          <input id="bookingSearch" placeholder="Search bookings">
+  <div class="machine-panel">
+    <div class="machine-title">🔧 Machine status · click to toggle</div>
+    <div id="machineGroups"></div>
+  </div>
+
+  <div class="filters-bar">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+    <button class="filter-btn" data-filter="active" onclick="setFilter('active')">Active Now</button>
+    <button class="filter-btn" data-filter="upcoming" onclick="setFilter('upcoming')">Upcoming</button>
+    <button class="filter-btn" data-filter="done" onclick="setFilter('done')">Completed</button>
+    <input type="text" class="search-input" id="searchInput" placeholder="Search name / room" oninput="filterBookings()">
+    <button onclick="refreshReception()" style="margin-left: auto;">⟳ Refresh</button>
+  </div>
+
+  <div id="bookingsList" class="bookings-list">
+    <div class="empty-state" style="text-align:center; padding:2rem; color:#7a8aaa;">Loading bookings...</div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+  const ALL_MACHINES = [
+    { facility: 'in-house', room: '2nd Floor' },
+    { facility: 'in-house', room: '3rd Floor' },
+    { facility: 'in-house', room: '5th Floor' },
+    { facility: 'in-house', room: '7th Floor' },
+    { facility: 'in-house', room: '9th Floor' },
+    { facility: 'basement', room: 'Basement 1' },
+    { facility: 'basement', room: 'Basement 3' }
+  ];
+
+  let allBookings = [];
+  let filter = 'all';
+  let searchTerm = '';
+  let socket = null;
+  let machineStates = {};
+
+  function getSlotStatus(dateStr, slotStr) {
+    const [start] = slotStr.split('-');
+    const now = new Date();
+    const slotStart = new Date(`${dateStr}T${start.trim()}:00`);
+    const slotEnd = new Date(`${dateStr}T${slotStr.split('-')[1].trim()}:00`);
+    if (now >= slotStart && now < slotEnd) return 'active';
+    if (now < slotStart) return 'upcoming';
+    return 'done';
+  }
+
+  async function loadMachines() {
+    try {
+      const res = await fetch('/api/machines');
+      const dbMachines = await res.json();
+      machineStates = {};
+      dbMachines.forEach(m => { machineStates[`${m.facility}|${m.room}`] = m.working; });
+      ALL_MACHINES.forEach(m => {
+        const key = `${m.facility}|${m.room}`;
+        if (machineStates[key] === undefined) machineStates[key] = true;
+      });
+      renderMachines();
+    } catch(e) { console.error(e); }
+  }
+
+  function renderMachines() {
+    const groups = {
+      'in-house': { label: '🏠 In‑House Laundry', rooms: [] },
+      'basement': { label: '🏚️ Basement Laundry', rooms: [] }
+    };
+    ALL_MACHINES.forEach(m => {
+      const working = machineStates[`${m.facility}|${m.room}`] ?? true;
+      groups[m.facility].rooms.push({ room: m.room, working });
+    });
+    const container = document.getElementById('machineGroups');
+    container.innerHTML = '';
+    for (const [facility, data] of Object.entries(groups)) {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'machine-group';
+      groupDiv.innerHTML = `<h4>${data.label}</h4><div class="machine-grid" id="machine-grid-${facility}"></div>`;
+      container.appendChild(groupDiv);
+      const grid = groupDiv.querySelector(`.machine-grid`);
+      data.rooms.forEach(r => {
+        const btn = document.createElement('div');
+        btn.className = `machine-item ${r.working ? 'working' : 'broken'}`;
+        btn.innerHTML = `<div class="machine-dot"></div>${r.room} ${r.working ? '✅ Working' : '❌ Broken'}`;
+        btn.onclick = () => toggleMachine(facility, r.room, !r.working);
+        grid.appendChild(btn);
+      });
+    }
+  }
+
+  async function toggleMachine(facility, room, newWorking) {
+    try {
+      const machinesRes = await fetch('/api/machines');
+      const machines = await machinesRes.json();
+      const existing = machines.find(m => m.facility === facility && m.room === room);
+      if (existing) {
+        await fetch(`/api/machines/${existing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ working: newWorking, note: newWorking ? '' : 'Out of service' })
+        });
+      }
+      const key = `${facility}|${room}`;
+      machineStates[key] = newWorking;
+      renderMachines();
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadBookings() {
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      const res = await fetch(`/api/bookings?date=${today}`);
+      allBookings = await res.json();
+      updateStats();
+      renderBookings();
+    } catch(e) { console.error(e); }
+  }
+
+  function updateStats() {
+    const today = new Date().toISOString().slice(0,10);
+    const todayBookings = allBookings.filter(b => b.date === today);
+    const active = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'active').length;
+    const upcoming = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'upcoming').length;
+    const done = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'done').length;
+    document.getElementById('statTotal').innerText = todayBookings.length;
+    document.getElementById('statActive').innerText = active;
+    document.getElementById('statUpcoming').innerText = upcoming;
+    document.getElementById('statDone').innerText = done;
+  }
+
+  function renderBookings() {
+    const container = document.getElementById('bookingsList');
+    let filtered = allBookings.filter(b => {
+      const matchesSearch = b.name.toLowerCase().includes(searchTerm) || (b.room_number || '').toLowerCase().includes(searchTerm);
+      const status = getSlotStatus(b.date, b.slot);
+      if (filter === 'all') return matchesSearch;
+      return matchesSearch && status === filter;
+    });
+    filtered.sort((a,b) => {
+      const order = {active:0, upcoming:1, done:2};
+      const statusA = getSlotStatus(a.date, a.slot);
+      const statusB = getSlotStatus(b.date, b.slot);
+      if(order[statusA] !== order[statusB]) return order[statusA] - order[statusB];
+      return a.slot.localeCompare(b.slot);
+    });
+
+    if(filtered.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:2rem; color:#7a8aaa;">📭 No bookings match</div>';
+      return;
+    }
+
+    container.innerHTML = filtered.map(b => {
+      const status = getSlotStatus(b.date, b.slot);
+      const statusClass = `status-${status}`;
+      const statusLabel = status.toUpperCase();
+      const facilityIcon = b.facility === 'in-house' ? '🏠' : '🏚️';
+      const canCheckin = (status === 'active') && b.status === 'confirmed';
+      const checkedInLabel = b.status === 'checked_in' ? '✓ Card issued' : '';
+      const checkedOutLabel = b.status === 'completed' ? (b.late_return ? `⚠️ Late +${b.late_minutes}min` : '✓ Card returned') : '';
+      return `
+        <div class="booking-card">
+          <div class="booking-row">
+            <div class="booking-info">
+              <div class="booking-name">${escapeHtml(b.name)}</div>
+              <div class="booking-details">
+                <span>${facilityIcon} ${b.room}</span>
+                <span>🚪 ${b.room_number}</span>
+                <span class="booking-slot">${b.slot}</span>
+                <span>📅 ${b.date}</span>
+              </div>
+              <div style="margin-top: 5px; display: flex; gap: 0.5rem; align-items: center;">
+                <span class="booking-status ${statusClass}">${statusLabel}</span>
+                ${checkedInLabel ? `<span style="font-size:0.65rem; color:#00e5b0;">${checkedInLabel}</span>` : ''}
+                ${checkedOutLabel ? `<span style="font-size:0.65rem; color:#ffa500;">${checkedOutLabel}</span>` : ''}
+              </div>
+            </div>
+            <div class="booking-actions">
+              ${canCheckin ? `<button onclick="checkIn(${b.id})">🎫 Check in</button>` : ''}
+              ${b.status === 'checked_in' ? `<button onclick="checkOut(${b.id})">↩ Return card</button>` : ''}
+            </div>
+          </div>
         </div>
-        <div class="booking-list" id="receptionBookings"></div>
-      </div>
+      `;
+    }).join('');
+  }
 
-      <aside class="panel">
-        <h2>Machines</h2>
-        <div class="machine-list" id="receptionMachines"></div>
-      </aside>
-    </section>
-  </main>
+  function filterBookings() {
+    searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    renderBookings();
+  }
+
+  function setFilter(f) {
+    filter = f;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.filter-btn[data-filter="${f}"]`).classList.add('active');
+    renderBookings();
+  }
+
+  async function checkIn(id) {
+    try {
+      await fetch(`/api/checkin/${id}`, { method: 'POST' });
+      await loadBookings();
+      await loadMachines();
+    } catch(e) { console.error(e); }
+  }
+
+  async function checkOut(id) {
+    try {
+      await fetch(`/api/checkout/${id}`, { method: 'POST' });
+      await loadBookings();
+    } catch(e) { console.error(e); }
+  }
+
+  async function refreshReception() {
+    await loadBookings();
+    await loadMachines();
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>]/g, function(m) {
+      if(m === '&') return '&amp;';
+      if(m === '<') return '&lt;';
+      if(m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('liveClock').innerHTML = now.toLocaleTimeString('en-ZA');
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function initWebSocket() {
+    socket = io({ transports: ['polling', 'websocket'] });
+    socket.on('connect', () => console.log('Reception connected'));
+    socket.on('booking_created', () => refreshReception());
+    socket.on('booking_updated', () => refreshReception());
+    socket.on('machine_updated', () => loadMachines());
+  }
+
+  initWebSocket();
+  loadBookings();
+  loadMachines();
+  setInterval(refreshReception, 30000);
+</script>
 </body>
 </html>
