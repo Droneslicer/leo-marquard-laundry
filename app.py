@@ -472,6 +472,21 @@ def checkout(booking_id):
             if booking["checked_out"] or booking["status"] == "completed":
                 return jsonify({"error": "Booking is already checked out"}), 400
 
+            # ===== COOLDOWN CHECK =====
+            # Don't allow checkout if checked in less than 10 minutes ago
+            if booking["checked_in_at"]:
+                checked_in_time = datetime.fromisoformat(booking["checked_in_at"]) if isinstance(
+                    booking["checked_in_at"], str) else booking["checked_in_at"]
+                minutes_since_checkin = int((now_local() - checked_in_time).total_seconds() // 60)
+                if minutes_since_checkin < 10:
+                    remaining = 10 - minutes_since_checkin
+                    return jsonify({
+                        "error": f"Card cannot be returned yet. Please wait {remaining} more minute(s).",
+                        "cooldown_remaining": remaining,
+                        "can_return": False
+                    }), 400
+            # ===== END COOLDOWN CHECK =====
+
             slot_end = parse_slot_end(booking["date"], booking["slot"])
             late_minutes = max(0, int((now_local() - slot_end).total_seconds() // 60))
             is_late = late_minutes > 0

@@ -229,7 +229,7 @@
     .status-active { background: rgba(0, 229, 176, 0.2); color: #00e5b0; }
     .status-upcoming { background: rgba(100, 150, 255, 0.2); color: #6496ff; }
     .status-done { background: rgba(122, 138, 170, 0.2); color: #7a8aaa; }
-    .booking-actions { display: flex; gap: 0.5rem; }
+    .booking-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     button {
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -241,15 +241,23 @@
       transition: all 0.2s;
       color: #eef2ff;
     }
-    button:hover {
+    button:hover:not(:disabled) {
       background: #00e5b0;
       color: #021812;
       border-color: #00e5b0;
     }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     .late-badge {
       background: rgba(255, 94, 108, 0.2);
       color: #ff5e6c;
+      padding: 0.2rem 0.6rem;
+      border-radius: 1rem;
+      font-size: 0.65rem;
+      margin-left: 0.5rem;
+    }
+    .cooldown-badge {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
       padding: 0.2rem 0.6rem;
       border-radius: 1rem;
       font-size: 0.65rem;
@@ -301,6 +309,7 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
+  // ===================== CONFIG =====================
   const ALL_MACHINES = [
     { facility: 'in-house', room: '2nd Floor' },
     { facility: 'in-house', room: '3rd Floor' },
@@ -311,12 +320,34 @@
     { facility: 'basement', room: 'Basement 3' }
   ];
 
+  // ===================== STATE =====================
   let allBookings = [];
   let filter = 'all';
   let searchTerm = '';
   let socket = null;
   let machineStates = {};
+  let cooldownIntervals = {};
 
+  // ===================== TOAST NOTIFICATION =====================
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.backgroundColor = type === 'error' ? '#dc2626' : type === 'warning' ? '#f59e0b' : '#10b981';
+    toast.style.color = 'white';
+    toast.style.padding = '12px 20px';
+    toast.style.borderRadius = '8px';
+    toast.style.zIndex = '9999';
+    toast.style.fontSize = '14px';
+    toast.style.fontFamily = 'monospace';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  // ===================== HELPER FUNCTIONS =====================
   function getSlotStatus(dateStr, slotStr) {
     const [start] = slotStr.split('-');
     const now = new Date();
@@ -327,6 +358,23 @@
     return 'done';
   }
 
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  function formatTimeForDisplay(isoString) {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    return date;
+  }
+
+  // ===================== MACHINES =====================
   async function loadMachines() {
     try {
       const res = await fetch('/api/machines');
@@ -383,12 +431,14 @@
       const key = `${facility}|${room}`;
       machineStates[key] = newWorking;
       renderMachines();
+      showToast(`${facility === 'in-house' ? '🏠' : '🏚️'} ${room} is now ${newWorking ? 'working' : 'offline'}`, 'info');
     } catch(e) { console.error(e); }
   }
 
+  // ===================== BOOKINGS =====================
   async function loadBookings() {
     try {
-      const today = new Date().toISOString().slice(0,10);
+      const today = new Date().toISOString().slice(0, 10);
       const res = await fetch(`/api/bookings?date=${today}`);
       allBookings = await res.json();
       updateStats();
@@ -397,7 +447,7 @@
   }
 
   function updateStats() {
-    const today = new Date().toISOString().slice(0,10);
+    const today = new Date().toISOString().slice(0, 10);
     const todayBookings = allBookings.filter(b => b.date === today);
     const active = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'active').length;
     const upcoming = todayBookings.filter(b => getSlotStatus(b.date, b.slot) === 'upcoming').length;
@@ -416,15 +466,15 @@
       if (filter === 'all') return matchesSearch;
       return matchesSearch && status === filter;
     });
-    filtered.sort((a,b) => {
-      const order = {active:0, upcoming:1, done:2};
+    filtered.sort((a, b) => {
+      const order = { active: 0, upcoming: 1, done: 2 };
       const statusA = getSlotStatus(a.date, a.slot);
       const statusB = getSlotStatus(b.date, b.slot);
-      if(order[statusA] !== order[statusB]) return order[statusA] - order[statusB];
+      if (order[statusA] !== order[statusB]) return order[statusA] - order[statusB];
       return a.slot.localeCompare(b.slot);
     });
 
-    if(filtered.length === 0) {
+    if (filtered.length === 0) {
       container.innerHTML = '<div style="text-align:center; padding:2rem; color:#7a8aaa;">📭 No bookings match</div>';
       return;
     }
@@ -435,10 +485,24 @@
       const statusLabel = status.toUpperCase();
       const facilityIcon = b.facility === 'in-house' ? '🏠' : '🏚️';
       const canCheckin = (status === 'active') && b.status === 'confirmed';
-      const checkedInLabel = b.status === 'checked_in' ? '✓ Card issued' : '';
-      const checkedOutLabel = b.status === 'completed' ? (b.late_return ? `⚠️ Late +${b.late_minutes}min` : '✓ Card returned') : '';
+      const isCheckedIn = b.status === 'checked_in';
+      const isCompleted = b.status === 'completed';
+
+      // Calculate cooldown remaining if checked in
+      let cooldownRemaining = 0;
+      let cooldownText = '';
+      if (isCheckedIn && b.checked_in_at) {
+        const checkinTime = new Date(b.checked_in_at);
+        const now = new Date();
+        const minutesSince = Math.floor((now - checkinTime) / 60000);
+        if (minutesSince < 10) {
+          cooldownRemaining = 10 - minutesSince;
+          cooldownText = `<span class="cooldown-badge">⏳ Cooldown: ${cooldownRemaining} min</span>`;
+        }
+      }
+
       return `
-        <div class="booking-card">
+        <div class="booking-card" data-booking-id="${b.id}">
           <div class="booking-row">
             <div class="booking-info">
               <div class="booking-name">${escapeHtml(b.name)}</div>
@@ -448,22 +512,118 @@
                 <span class="booking-slot">${b.slot}</span>
                 <span>📅 ${b.date}</span>
               </div>
-              <div style="margin-top: 5px; display: flex; gap: 0.5rem; align-items: center;">
+              <div style="margin-top: 5px; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                 <span class="booking-status ${statusClass}">${statusLabel}</span>
-                ${checkedInLabel ? `<span style="font-size:0.65rem; color:#00e5b0;">${checkedInLabel}</span>` : ''}
-                ${checkedOutLabel ? `<span style="font-size:0.65rem; color:#ffa500;">${checkedOutLabel}</span>` : ''}
+                ${b.status === 'checked_in' ? '<span style="font-size:0.65rem; color:#00e5b0;">✓ Card issued</span>' : ''}
+                ${b.status === 'completed' ? (b.late_return ? `<span class="late-badge">⚠️ Late +${b.late_minutes}min</span>` : '<span style="font-size:0.65rem; color:#00e5b0;">✓ Card returned</span>') : ''}
+                ${cooldownText}
               </div>
             </div>
             <div class="booking-actions">
-              ${canCheckin ? `<button onclick="checkIn(${b.id})">🎫 Check in</button>` : ''}
-              ${b.status === 'checked_in' ? `<button onclick="checkOut(${b.id})">↩ Return card</button>` : ''}
+              ${canCheckin ? `<button class="checkin-btn" data-id="${b.id}">🎫 Check in</button>` : ''}
+              ${isCheckedIn ? `<button class="checkout-btn" data-id="${b.id}" data-checkin-time="${b.checked_in_at || ''}" ${cooldownRemaining > 0 ? 'disabled' : ''}>↩ Return Card</button>` : ''}
             </div>
           </div>
         </div>
       `;
     }).join('');
+
+    // Attach event listeners dynamically
+    document.querySelectorAll('.checkin-btn').forEach(btn => {
+      btn.removeEventListener('click', handleCheckIn);
+      btn.addEventListener('click', handleCheckIn);
+    });
+    document.querySelectorAll('.checkout-btn').forEach(btn => {
+      btn.removeEventListener('click', handleCheckOut);
+      btn.addEventListener('click', handleCheckOut);
+    });
   }
 
+  // ===================== CHECK IN/OUT WITH COOLDOWN =====================
+  async function handleCheckIn(event) {
+    const button = event.currentTarget;
+    const bookingId = button.dataset.id;
+    button.disabled = true;
+    button.textContent = 'Processing...';
+
+    try {
+      const res = await fetch(`/api/checkin/${bookingId}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Check-in failed', 'error');
+        button.disabled = false;
+        button.textContent = '🎫 Check in';
+        return;
+      }
+      showToast(`✅ Checked in successfully`, 'success');
+      await refreshReception();
+    } catch (err) {
+      showToast('Check-in failed', 'error');
+      button.disabled = false;
+      button.textContent = '🎫 Check in';
+    }
+  }
+
+  async function handleCheckOut(event) {
+    const button = event.currentTarget;
+    const bookingId = button.dataset.id;
+    const originalText = button.textContent;
+
+    // Disable button during request
+    button.disabled = true;
+    button.textContent = 'Processing...';
+
+    try {
+      const res = await fetch(`/api/checkout/${bookingId}`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.cooldown_remaining) {
+          // Clear any existing interval for this booking
+          if (cooldownIntervals[bookingId]) {
+            clearInterval(cooldownIntervals[bookingId]);
+          }
+          showToast(`⏳ Please wait ${data.cooldown_remaining} more minute(s) before returning the card.`, 'warning');
+          startCooldownCountdown(button, data.cooldown_remaining, bookingId);
+          return;
+        }
+        showToast(data.error || 'Checkout failed', 'error');
+        button.disabled = false;
+        button.textContent = originalText;
+        return;
+      }
+
+      showToast(data.message || '✅ Checked out successfully', 'success');
+      await refreshReception();
+    } catch (err) {
+      showToast('Checkout failed: ' + err.message, 'error');
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+
+  function startCooldownCountdown(button, remainingMinutes, bookingId) {
+    let remaining = remainingMinutes;
+    button.textContent = `⏳ Wait ${remaining} min...`;
+    button.disabled = true;
+
+    cooldownIntervals[bookingId] = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(cooldownIntervals[bookingId]);
+        delete cooldownIntervals[bookingId];
+        button.textContent = '↩ Return Card';
+        button.disabled = false;
+        showToast(`✓ Card return is now available for booking #${bookingId}!`, 'success');
+        // Refresh to update the UI
+        refreshReception();
+      } else {
+        button.textContent = `⏳ Wait ${remaining} min...`;
+      }
+    }, 60000);
+  }
+
+  // ===================== FILTERS =====================
   function filterBookings() {
     searchTerm = document.getElementById('searchInput').value.toLowerCase();
     renderBookings();
@@ -476,35 +636,13 @@
     renderBookings();
   }
 
-  async function checkIn(id) {
-    try {
-      await fetch(`/api/checkin/${id}`, { method: 'POST' });
-      await loadBookings();
-      await loadMachines();
-    } catch(e) { console.error(e); }
-  }
-
-  async function checkOut(id) {
-    try {
-      await fetch(`/api/checkout/${id}`, { method: 'POST' });
-      await loadBookings();
-    } catch(e) { console.error(e); }
-  }
-
+  // ===================== REFRESH =====================
   async function refreshReception() {
     await loadBookings();
     await loadMachines();
   }
 
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>]/g, function(m) {
-      if(m === '&') return '&amp;';
-      if(m === '<') return '&lt;';
-      if(m === '>') return '&gt;';
-      return m;
-    });
-  }
-
+  // ===================== CLOCK =====================
   function updateClock() {
     const now = new Date();
     document.getElementById('liveClock').innerHTML = now.toLocaleTimeString('en-ZA');
@@ -512,6 +650,7 @@
   setInterval(updateClock, 1000);
   updateClock();
 
+  // ===================== WEBSOCKET =====================
   function initWebSocket() {
     socket = io({ transports: ['polling', 'websocket'] });
     socket.on('connect', () => console.log('Reception connected'));
@@ -520,6 +659,7 @@
     socket.on('machine_updated', () => loadMachines());
   }
 
+  // ===================== INIT =====================
   initWebSocket();
   loadBookings();
   loadMachines();
